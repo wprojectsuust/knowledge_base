@@ -25,7 +25,7 @@ class GetReallyQuestion:
 
 
 class SearchDataByText:
-    """Будет искать И в chromabd И в S3 через сервисы -> репо"""
+    """Будет искать И в chromabd И в S3 через сервисы после -> репо"""
 
     @staticmethod
     def execute(really_question: str) -> Data:
