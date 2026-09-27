@@ -1,10 +1,34 @@
 from src.domain.data import Data
+from src.services.data_store_service import DataStoreService
+from src.services.embedding_service import EmbeddingService
+from src.services.vector_search_service import VectorSearchService
+from src.use_cases.analyze_data import AnalyzeDataByLLMForNewData
 
 
 class NewData:
-    # TODO: Анализирует Data через AnalyzeDataByLLMForNewData, данные добавляет в хранилище (типа S3),
-    #  вопросы из AnalyzeDataByLLMForNewData уходят в векторную базу (типа chromabd).
-    #  В векторной базе векторы вопросов линкуют к данным по id
-    @staticmethod
-    def execute(data: Data) -> bool:
-        ...
+    """Анализирует Data через AnalyzeDataByLLMForNewData, данные добавляет в хранилище (типа S3),
+    вопросы из AnalyzeDataByLLMForNewData уходят в векторную базу (типа chromabd).
+    В векторной базе id векторов линкуют к данным по id"""
+
+    def __init__(
+        self,
+        analyze_data: AnalyzeDataByLLMForNewData,
+        embedding_service: EmbeddingService,
+        vector_search_service: VectorSearchService,
+        data_store_service: DataStoreService,
+    ) -> None:
+        self._analyze_data = analyze_data
+        self._embedding_service = embedding_service
+        self._vector_search_service = vector_search_service
+        self._data_store_service = data_store_service
+
+    def execute(self, data: Data) -> bool:
+        questions = self._analyze_data.execute(data)
+        if not questions:
+            return False
+
+        self._data_store_service.save(data)
+        for question in questions:
+            embedding = self._embedding_service.encode(question)
+            self._vector_search_service.index(data.id, embedding)
+        return True

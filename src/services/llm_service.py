@@ -1,7 +1,26 @@
 from __future__ import annotations
 
+import json
 import os
 from typing import Protocol
+
+
+def parse_string_list(raw: str) -> list[str]:
+    """Разбирает ответ LLM, ожидаемый как JSON-массив строк, с запасным построчным парсингом,
+    если модель не выдержала формат."""
+    raw = raw.strip()
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return [line.strip("- \t\n\"'") for line in raw.splitlines() if line.strip()]
+
+    if isinstance(parsed, list):
+        return [str(item).strip() for item in parsed if str(item).strip()]
+    if isinstance(parsed, dict):
+        for value in parsed.values():
+            if isinstance(value, list):
+                return [str(item).strip() for item in value if str(item).strip()]
+    return []
 
 
 class LLMProvider(Protocol):

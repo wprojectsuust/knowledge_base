@@ -11,6 +11,9 @@ class DataRepository(Protocol):
     def get(self, id_: int) -> Data | None:
         ...
 
+    def get_many(self, ids: list[int]) -> list[Data]:
+        ...
+
     def save(self, data: Data) -> None:
         ...
 
