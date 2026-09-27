@@ -11,17 +11,20 @@ class QuestionResponse(BaseModel):
 
 class SearchRequest(BaseModel):
     really_questions: list[str]
+    division: str | None = None
 
 
 class DataIn(BaseModel):
     source: str
     content: str
+    division: str | None = None
 
 
 class DataOut(BaseModel):
     id: int
     source: str
     content: str
+    division: str | None = None
 
 
 class DataCreated(BaseModel):

@@ -14,11 +14,11 @@ class VectorSearchService:
     def __init__(self, vector_repository: VectorRepository) -> None:
         self._vector_repository = vector_repository
 
-    async def search(self, embedding: list[float], n_results: int = 6) -> list[int]:
-        return await asyncio.to_thread(self._vector_repository.query, embedding, n_results)
+    async def search(self, embedding: list[float], n_results: int = 6, division: str | None = None) -> list[int]:
+        return await asyncio.to_thread(self._vector_repository.query, embedding, n_results, division)
 
-    async def index(self, id_: int, embedding: list[float]) -> None:
-        await asyncio.to_thread(self._vector_repository.add, id_, embedding)
+    async def index(self, id_: int, embedding: list[float], division: str | None = None) -> None:
+        await asyncio.to_thread(self._vector_repository.add, id_, embedding, division)
 
     async def remove(self, id_: int) -> None:
         await asyncio.to_thread(self._vector_repository.delete, id_)

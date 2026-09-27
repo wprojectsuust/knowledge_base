@@ -11,6 +11,7 @@ from src.api.dependencies import (
 )
 from src.api.schemas import DataCreated, DataIn, DataOut, OkResponse, QuestionRequest, QuestionResponse, SearchRequest
 from src.domain.data import Data
+from src.domain.division import divisions_by_slug
 from src.use_cases.new_data import NewData
 from src.use_cases.question import Question
 from src.use_cases.remove_data import RemoveDataById
@@ -35,16 +36,22 @@ async def ask_question(
 async def search_data(
     payload: SearchRequest, use_case: SearchDataByListOfStr = Depends(get_search_data_use_case)
 ) -> list[DataOut]:
-    logger.info("POST /search: вопросы=%s", payload.really_questions)
-    found = await use_case.execute(payload.really_questions)
+    logger.info("POST /search: вопросы=%s, division=%s", payload.really_questions, payload.division)
+    if payload.division is not None and payload.division not in divisions_by_slug():
+        raise HTTPException(status_code=422, detail=f"Неизвестный division slug: {payload.division}")
+    found = await use_case.execute(payload.really_questions, division=payload.division)
     logger.info("POST /search: найдено %d документов (id=%s)", len(found), [item.id for item in found])
-    return [DataOut(id=item.id, source=item.source, content=item.content) for item in found]
+    return [DataOut(id=item.id, source=item.source, content=item.content, division=item.division) for item in found]
 
 
 @router.post("/data", response_model=DataCreated)
 async def add_data(payload: DataIn, use_case: NewData = Depends(get_new_data_use_case)) -> DataCreated:
-    logger.info("POST /data: источник=%s, длина контента=%d", payload.source, len(payload.content))
-    data = Data(source=payload.source, content=payload.content)
+    logger.info(
+        "POST /data: источник=%s, длина контента=%d, division=%s", payload.source, len(payload.content), payload.division
+    )
+    if payload.division is not None and payload.division not in divisions_by_slug():
+        raise HTTPException(status_code=422, detail=f"Неизвестный division slug: {payload.division}")
+    data = Data(source=payload.source, content=payload.content, division=payload.division)
     new_id = await use_case.execute(data)
     if new_id is None:
         logger.warning("POST /data: не удалось проиндексировать данные из источника %s", payload.source)
@@ -60,7 +67,7 @@ async def get_data(id_: int, use_case: SearchDataById = Depends(get_search_data_
     if data is None:
         logger.info("GET /data/%s: не найдено", id_)
         raise HTTPException(status_code=404, detail="Data not found")
-    return DataOut(id=data.id, source=data.source, content=data.content)
+    return DataOut(id=data.id, source=data.source, content=data.content, division=data.division)
 
 
 @router.delete("/data/{id_}", response_model=OkResponse)

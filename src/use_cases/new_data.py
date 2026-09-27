@@ -34,9 +34,9 @@ class NewData:
             return None
 
         new_id = await self._data_store_service.save(data)
-        logger.info("NewData: сохранено в PostgreSQL, id=%d", new_id)
+        logger.info("NewData: сохранено в PostgreSQL, id=%d, division=%s", new_id, data.division)
         for question in questions:
             embedding = self._embedding_service.encode(question)
-            await self._vector_search_service.index(new_id, embedding)
+            await self._vector_search_service.index(new_id, embedding, division=data.division)
         logger.info("NewData: проиндексировано %d векторов для id=%d", len(questions), new_id)
         return new_id

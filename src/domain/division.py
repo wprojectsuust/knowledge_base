@@ -189,6 +189,40 @@ def divisions_by_slug() -> dict[str, UustDivision]:
     return {d.slug: d for d in UustDivision}
 
 
+# Доп. ключевые слова/варианты аббревиатур сверх DivisionInfo.short - для keyword-детекта
+# Division в вопросе пользователя (см. detect_division). Не претендует на полноту.
+_EXTRA_KEYWORDS: dict[UustDivision, list[str]] = {
+    UustDivision.IIMRT: ["имрт", "фирт", "фмиит"],
+    UustDivision.PISH: ["моторы будущего", "пиш"],
+    UustDivision.VUC: ["военный учебный центр", "военная кафедра"],
+    UustDivision.IP: ["институт права", "юрфак", "юридический"],
+}
+
+
+def _build_division_keywords() -> dict[str, UustDivision]:
+    keywords: dict[str, UustDivision] = {}
+    for division in UustDivision:
+        if division.short:
+            keywords[division.short.lower()] = division
+        for extra in _EXTRA_KEYWORDS.get(division, []):
+            keywords[extra.lower()] = division
+    return keywords
+
+
+DIVISION_KEYWORDS: dict[str, UustDivision] = _build_division_keywords()
+
+
+def detect_division(text: str) -> UustDivision | None:
+    """Ищет в тексте упоминание Division по ключевым словам/аббревиатурам (регистронезависимо).
+    Проверяет более длинные ключевые слова первыми, чтобы более специфичное совпадение
+    не терялось за более коротким (например 'иимрт' не должно перекрываться 'имрт')."""
+    lowered = text.lower()
+    for keyword in sorted(DIVISION_KEYWORDS, key=len, reverse=True):
+        if keyword in lowered:
+            return DIVISION_KEYWORDS[keyword]
+    return None
+
+
 if __name__ == "__main__":
     for d in UustDivision:
         print(f"{d.kind.value:9} | {d.slug:22} | {d.label}")

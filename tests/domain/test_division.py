@@ -1,4 +1,4 @@
-from src.domain.division import DivisionInfo, DivisionKind, UustDivision, divisions_by_kind, divisions_by_slug
+from src.domain.division import DivisionInfo, DivisionKind, UustDivision, detect_division, divisions_by_kind, divisions_by_slug
 
 
 def test_label_includes_short_name_when_present() -> None:
@@ -38,3 +38,19 @@ def test_divisions_by_slug_is_keyed_by_slug_and_covers_everything() -> None:
 
     assert by_slug["ip"] is UustDivision.IP
     assert len(by_slug) == len(list(UustDivision))
+
+
+def test_detect_division_matches_short_abbreviation() -> None:
+    assert detect_division("Где находится деканат ИИМРТ?") == UustDivision.IIMRT
+
+
+def test_detect_division_matches_extra_keyword() -> None:
+    assert detect_division("что нужно чтобы попасть в клуб моторы будущего") == UustDivision.PISH
+
+
+def test_detect_division_prefers_longer_keyword_match() -> None:
+    assert detect_division("расписание иимрт") == UustDivision.IIMRT
+
+
+def test_detect_division_returns_none_when_nothing_matches() -> None:
+    assert detect_division("когда стипендия") is None

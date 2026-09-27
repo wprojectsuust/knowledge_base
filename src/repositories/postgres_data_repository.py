@@ -11,13 +11,14 @@ _CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS documents (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     source TEXT NOT NULL,
-    content TEXT NOT NULL
+    content TEXT NOT NULL,
+    division TEXT NULL
 )
 """
 
-_SELECT_ONE_SQL = "SELECT id, source, content FROM documents WHERE id = $1"
-_SELECT_MANY_SQL = "SELECT id, source, content FROM documents WHERE id = ANY($1::int[])"
-_INSERT_SQL = "INSERT INTO documents (source, content) VALUES ($1, $2) RETURNING id"
+_SELECT_ONE_SQL = "SELECT id, source, content, division FROM documents WHERE id = $1"
+_SELECT_MANY_SQL = "SELECT id, source, content, division FROM documents WHERE id = ANY($1::int[])"
+_INSERT_SQL = "INSERT INTO documents (source, content, division) VALUES ($1, $2, $3) RETURNING id"
 _DELETE_SQL = "DELETE FROM documents WHERE id = $1"
 
 
@@ -46,7 +47,7 @@ class PostgresDataRepository:
 
     @staticmethod
     def _row_to_data(row) -> Data:
-        return Data(id=row["id"], source=row["source"], content=row["content"])
+        return Data(id=row["id"], source=row["source"], content=row["content"], division=row["division"])
 
     async def get(self, id_: int) -> Data | None:
         pool = await self._get_pool()
@@ -66,8 +67,10 @@ class PostgresDataRepository:
 
     async def save(self, data: Data) -> int:
         pool = await self._get_pool()
-        logger.debug("SQL save: source=%s content=%s", data.source, preview(data.content))
-        new_id = await pool.fetchval(_INSERT_SQL, data.source, data.content)
+        logger.debug(
+            "SQL save: source=%s division=%s content=%s", data.source, data.division, preview(data.content)
+        )
+        new_id = await pool.fetchval(_INSERT_SQL, data.source, data.content, data.division)
         logger.debug("SQL save: присвоен id=%s", new_id)
         return new_id
 

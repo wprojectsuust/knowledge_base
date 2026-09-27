@@ -29,6 +29,7 @@ async def test_get_returns_data_when_row_exists(sample_data, fake_asyncpg_pool) 
         "id": sample_data.id,
         "source": sample_data.source,
         "content": sample_data.content,
+        "division": sample_data.division,
     }
     repo = _make_repo()
 
@@ -58,7 +59,12 @@ async def test_get_many_returns_empty_list_without_querying(fake_asyncpg_pool) -
 
 async def test_get_many_maps_rows_to_data(sample_data, fake_asyncpg_pool) -> None:
     fake_asyncpg_pool.fetch.return_value = [
-        {"id": sample_data.id, "source": sample_data.source, "content": sample_data.content},
+        {
+            "id": sample_data.id,
+            "source": sample_data.source,
+            "content": sample_data.content,
+            "division": sample_data.division,
+        },
     ]
     repo = _make_repo()
 
@@ -80,7 +86,7 @@ async def test_save_inserts_new_document_and_returns_generated_id(fake_asyncpg_p
     args, _ = fake_asyncpg_pool.fetchval.call_args
     assert "INSERT INTO documents" in args[0]
     assert "RETURNING id" in args[0]
-    assert args[1:] == (new_document.source, new_document.content)
+    assert args[1:] == (new_document.source, new_document.content, new_document.division)
 
 
 async def test_delete_removes_document(fake_asyncpg_pool) -> None:

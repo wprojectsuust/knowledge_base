@@ -29,3 +29,16 @@ async def test_new_data_returns_none_when_no_questions_generated(
 
     assert await use_case.execute(new_document) is None
     assert fake_data_store_service.store == {}
+
+
+async def test_new_data_passes_division_to_vector_index(
+    fake_llm_service, fake_embedding_service, fake_vector_search_service, fake_data_store_service
+) -> None:
+    fake_llm_service.response = '["где деканат"]'
+    document_with_division = Data(source="uust.ru", content="Расписание ИИМРТ", division="iimrt")
+    analyze_data = AnalyzeDataByLLMForNewData(fake_llm_service)
+    use_case = NewData(analyze_data, fake_embedding_service, fake_vector_search_service, fake_data_store_service)
+
+    new_id = await use_case.execute(document_with_division)
+
+    assert fake_vector_search_service.divisions[new_id] == "iimrt"

@@ -55,15 +55,21 @@ def fake_embedding_service() -> FakeEmbeddingService:
 class FakeVectorSearchService:
     def __init__(self) -> None:
         self.index_calls: dict[int, list[float]] = {}
+        self.divisions: dict[int, str | None] = {}
 
-    async def search(self, embedding: list[float], n_results: int = 6) -> list[int]:
-        return list(self.index_calls.keys())[:n_results]
+    async def search(self, embedding: list[float], n_results: int = 6, division: str | None = None) -> list[int]:
+        ids = list(self.index_calls.keys())
+        if division:
+            ids = [id_ for id_ in ids if self.divisions.get(id_) == division]
+        return ids[:n_results]
 
-    async def index(self, id_: int, embedding: list[float]) -> None:
+    async def index(self, id_: int, embedding: list[float], division: str | None = None) -> None:
         self.index_calls[id_] = embedding
+        self.divisions[id_] = division
 
     async def remove(self, id_: int) -> None:
         self.index_calls.pop(id_, None)
+        self.divisions.pop(id_, None)
 
 
 @pytest.fixture
@@ -85,7 +91,7 @@ class FakeDataStoreService:
     async def save(self, data: Data) -> int:
         new_id = self._next_id
         self._next_id += 1
-        self.store[new_id] = Data(id=new_id, source=data.source, content=data.content)
+        self.store[new_id] = Data(id=new_id, source=data.source, content=data.content, division=data.division)
         return new_id
 
     async def remove(self, id_: int) -> None:

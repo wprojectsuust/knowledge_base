@@ -60,7 +60,9 @@ async def test_search_returns_matched_data(
     response = client.post("/search", json={"really_questions": ["где деканат"]})
 
     assert response.status_code == 200
-    assert response.json() == [{"id": 1, "source": "example.com", "content": "Деканат находится в корпусе 2"}]
+    assert response.json() == [
+        {"id": 1, "source": "example.com", "content": "Деканат находится в корпусе 2", "division": None}
+    ]
 
 
 def test_add_data_returns_generated_id(
@@ -94,6 +96,28 @@ def test_add_data_returns_422_when_llm_generates_no_questions(
     assert response.status_code == 422
 
 
+def test_add_data_rejects_unknown_division_slug(
+    make_fake_llm_service, fake_embedding_service, fake_vector_search_service, fake_data_store_service
+) -> None:
+    from src.use_cases.analyze_data import AnalyzeDataByLLMForNewData
+
+    analyze_data = AnalyzeDataByLLMForNewData(make_fake_llm_service('["где деканат"]'))
+    use_case = NewData(analyze_data, fake_embedding_service, fake_vector_search_service, fake_data_store_service)
+
+    client = _client_with_overrides({get_new_data_use_case: lambda: use_case})
+
+    response = client.post(
+        "/data",
+        json={
+            "source": "example.com",
+            "content": "Деканат находится в корпусе 2",
+            "division": "not-a-real-division",
+        },
+    )
+
+    assert response.status_code == 422
+
+
 def test_get_data_returns_404_when_missing(fake_data_store_service) -> None:
     use_case = SearchDataById(fake_data_store_service)
 
@@ -113,7 +137,12 @@ def test_get_data_returns_data_when_found(fake_data_store_service) -> None:
     response = client.get("/data/1")
 
     assert response.status_code == 200
-    assert response.json() == {"id": 1, "source": "example.com", "content": "Деканат находится в корпусе 2"}
+    assert response.json() == {
+        "id": 1,
+        "source": "example.com",
+        "content": "Деканат находится в корпусе 2",
+        "division": None,
+    }
 
 
 async def test_delete_data_returns_ok_true(fake_data_store_service, fake_vector_search_service) -> None:

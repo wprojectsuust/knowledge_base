@@ -9,10 +9,10 @@ logger = logging.getLogger(__name__)
 class ChromaVectorRepository:
     """VectorRepository поверх персистентного локального ChromaDB.
 
-    Хранит только id+embedding: один data_id может быть проиндексирован несколькими
-    векторами (по числу сгенерированных вопросов), поэтому у каждого вектора свой
-    уникальный chroma-id, а data_id лежит в metadata и используется для группировки
-    и удаления."""
+    Хранит только id+embedding (+ опциональный division-тег в metadata): один data_id
+    может быть проиндексирован несколькими векторами (по числу сгенерированных вопросов),
+    поэтому у каждого вектора свой уникальный chroma-id, а data_id (и, если задан, division)
+    лежат в metadata и используются для группировки/фильтрации и удаления."""
 
     def __init__(self, persist_path: str, collection_name: str = "uunit_knowledge") -> None:
         import chromadb
@@ -22,21 +22,27 @@ class ChromaVectorRepository:
         self._collection = self._client.get_or_create_collection(collection_name)
         logger.info("Chroma: коллекция готова, векторов в ней: %d", self._collection.count())
 
-    def query(self, embedding: list[float], n_results: int = 6) -> list[int]:
+    def query(self, embedding: list[float], n_results: int = 6, division: str | None = None) -> list[int]:
         count = self._collection.count()
-        logger.debug("Chroma query: в коллекции %d векторов, запрошено n_results=%d", count, n_results)
+        logger.debug(
+            "Chroma query: в коллекции %d векторов, n_results=%d, division=%s", count, n_results, division
+        )
         if count == 0:
             return []
 
-        results = self._collection.query(query_embeddings=[embedding], n_results=min(n_results, count))
+        where = {"division": division} if division else None
+        results = self._collection.query(query_embeddings=[embedding], n_results=min(n_results, count), where=where)
         found_ids = [int(metadata["data_id"]) for metadata in results["metadatas"][0]]
         logger.debug("Chroma query: найдено data_id=%s", found_ids)
         return found_ids
 
-    def add(self, id_: int, embedding: list[float]) -> None:
+    def add(self, id_: int, embedding: list[float], division: str | None = None) -> None:
         vector_id = f"{id_}-{uuid4().hex}"
-        logger.debug("Chroma add: data_id=%s vector_id=%s", id_, vector_id)
-        self._collection.add(ids=[vector_id], embeddings=[embedding], metadatas=[{"data_id": id_}])
+        metadata: dict[str, int | str] = {"data_id": id_}
+        if division:
+            metadata["division"] = division
+        logger.debug("Chroma add: data_id=%s vector_id=%s division=%s", id_, vector_id, division)
+        self._collection.add(ids=[vector_id], embeddings=[embedding], metadatas=[metadata])
 
     def delete(self, id_: int) -> None:
         logger.debug("Chroma delete: data_id=%s", id_)

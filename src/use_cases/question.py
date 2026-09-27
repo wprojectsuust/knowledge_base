@@ -1,5 +1,6 @@
 import logging
 
+from src.domain.division import detect_division
 from src.services.question_cache_service import QuestionCacheService
 from src.use_cases.analyze_data import AnalyzeDataByLLMForUser
 from src.use_cases.get_really_questions import GetReallyQuestions
@@ -37,7 +38,13 @@ class Question:
 
         logger.info("Question: получен вопрос=%s", question)
         really_questions = self._get_really_questions.execute(question)
-        data = await self._search_data.execute(really_questions)
+
+        division = detect_division(question)
+        division_slug = division.slug if division else None
+        if division_slug:
+            logger.debug("Question: обнаружен Division по ключевым словам: %s", division_slug)
+
+        data = await self._search_data.execute(really_questions, division=division_slug)
         logger.info("Question: найдено документов=%d (id=%s)", len(data), [item.id for item in data])
         answer = self._analyze_data.execute(question, data)
         await self._question_cache_service.save(cache_key, answer)
