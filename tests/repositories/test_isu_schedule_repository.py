@@ -15,11 +15,25 @@ def test_week_number_for_date_in_january_uses_previous_september() -> None:
 
 
 def test_extract_venue_finds_auditorium_pattern() -> None:
-    assert _extract_venue("Матанализ (Иванов И.И.) ауд. 305") == "ауд. 305"
+    cleaned, venue = _extract_venue("Матанализ (Иванов И.И.) ауд. 305")
+
+    assert venue == "ауд. 305"
+    assert "ауд. 305" not in cleaned
 
 
 def test_extract_venue_returns_none_when_no_match() -> None:
-    assert _extract_venue("Матанализ (Иванов И.И.)") is None
+    cleaned, venue = _extract_venue("Матанализ (Иванов И.И.)")
+
+    assert venue is None
+    assert cleaned == "Матанализ (Иванов И.И.)"
+
+
+def test_extract_venue_formats_building_and_room_and_strips_duplicate() -> None:
+    cleaned, venue = _extract_venue("Матанализ (Иванов И.И.) Корпус 7 - 404")
+
+    assert venue == "кабинет 7-404"
+    assert "Корпус 7 - 404" not in cleaned
+    assert cleaned == "Матанализ (Иванов И.И.)"
 
 
 async def test_get_day_schedule_returns_none_for_unknown_group() -> None:

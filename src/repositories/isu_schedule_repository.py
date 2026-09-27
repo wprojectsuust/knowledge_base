@@ -13,8 +13,10 @@ logger = logging.getLogger(__name__)
 _GROUPS_PATH = Path(__file__).resolve().parent / "isu_groups.json"
 _SCHEDULE_URL = "https://www.isu.uust.ru/module/schedule/schedule_2024_script.php"
 
-# Best-effort извлечение места проведения из текста пары - формат ячейки в ИСУ не
-# документирован, эвристика ищет типичные для вуза обозначения аудитории/корпуса.
+# Извлечение места проведения из текста пары. Реальный формат ИСУ - "Корпус <N> - <комната>"
+# (например "Корпус 7 - 404") - сворачиваем в привычное "кабинет N-комната". Остальные два
+# паттерна - запасной вариант на случай другого формата ячейки.
+_BUILDING_ROOM_PATTERN = re.compile(r"[Кк]орпус\s*№?\s*(\d+)\s*-\s*(\d+\w*)")
 _VENUE_PATTERN = re.compile(r"(ауд\.?\s?\d+\w*|каб\.?\s?\d+\w*|корпус\s?№?\s?\d+)", re.IGNORECASE)
 
 
@@ -36,9 +38,21 @@ def _week_number_for_date(target: dt.date) -> int:
     return max(1, (days_passed // 7) + 1)
 
 
-def _extract_venue(subject_text: str) -> str | None:
+def _extract_venue(subject_text: str) -> tuple[str, str | None]:
+    """Вырезает место проведения из текста пары и возвращает (текст без него, само место).
+    Так избегаем дублирования - формат ИСУ и так включает место прямо в тексте пары."""
+    match = _BUILDING_ROOM_PATTERN.search(subject_text)
+    if match:
+        building, room = match.groups()
+        cleaned = (subject_text[: match.start()] + subject_text[match.end():]).strip(" ,-")
+        return cleaned, f"кабинет {building}-{room}"
+
     match = _VENUE_PATTERN.search(subject_text)
-    return match.group(0).strip() if match else None
+    if match:
+        cleaned = (subject_text[: match.start()] + subject_text[match.end():]).strip(" ,-")
+        return cleaned, match.group(0).strip()
+
+    return subject_text, None
 
 
 class IsuScheduleRepository:
@@ -73,10 +87,10 @@ class IsuScheduleRepository:
             logger.info("IsuScheduleRepository: день %s не найден в неделе %d", target_date_str, week)
             return DaySchedule(group=normalized_group, date=date, day_label=target_date_str, lessons=[])
 
-        lessons = [
-            ScheduleLesson(time=time_str, subject=subject_text, venue=_extract_venue(subject_text))
-            for _, time_str, subject_text in sorted(schedule_by_day[day_label], key=lambda item: item[0])
-        ]
+        lessons = []
+        for _, time_str, subject_text in sorted(schedule_by_day[day_label], key=lambda item: item[0]):
+            cleaned_subject, venue = _extract_venue(subject_text)
+            lessons.append(ScheduleLesson(time=time_str, subject=cleaned_subject, venue=venue))
         return DaySchedule(group=normalized_group, date=date, day_label=day_label, lessons=lessons)
 
     @staticmethod
