@@ -1,5 +1,10 @@
-from src.main import Question, SearchDataByListOfStr, GetReallyQuestions, AnalyzeDataByLLMForUser, NewData, Data, \
-    SearchDataById, RemoveDataById, AnalyzeDataByLLMForNewData
+from src.domain.data import Data
+from src.use_cases.question import Question
+from src.use_cases.get_really_questions import GetReallyQuestions
+from src.use_cases.search_data import SearchDataByListOfStr, SearchDataById
+from src.use_cases.remove_data import RemoveDataById
+from src.use_cases.new_data import NewData
+from src.use_cases.analyze_data import AnalyzeDataByLLMForUser, AnalyzeDataByLLMForNewData
 
 test_data = Data(id=0, source='example.com', content="Деканат находится в корпусе 2")
 test_task = "Мне сказали что для X нужно пойти в Y, где это?"
