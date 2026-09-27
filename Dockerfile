@@ -17,9 +17,10 @@ RUN pip install --no-cache-dir \
     "openai>=1.50.0" \
     "chromadb>=0.5.0" \
     "sentence-transformers>=3.0.0" \
-    "boto3>=1.34.0" \
+    "asyncpg>=0.29.0" \
     "pytest>=8.0.0" \
-    "pytest-cov>=5.0.0"
+    "pytest-cov>=5.0.0" \
+    "pytest-asyncio>=0.24.0"
 
 COPY . .
 

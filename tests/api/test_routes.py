@@ -95,7 +95,7 @@ def test_get_data_returns_data_when_found(fake_data_store_service) -> None:
     assert response.json() == {"id": 1, "source": "example.com", "content": "Деканат находится в корпусе 2"}
 
 
-def test_delete_data_returns_ok_true(fake_data_store_service, fake_vector_search_service) -> None:
+async def test_delete_data_returns_ok_true(fake_data_store_service, fake_vector_search_service) -> None:
     fake_data_store_service.store[sample_data.id] = sample_data
     use_case = RemoveDataById(fake_data_store_service, fake_vector_search_service)
 
@@ -105,4 +105,4 @@ def test_delete_data_returns_ok_true(fake_data_store_service, fake_vector_search
 
     assert response.status_code == 200
     assert response.json() == {"ok": True}
-    assert fake_data_store_service.get(1) is None
+    assert await fake_data_store_service.get(1) is None

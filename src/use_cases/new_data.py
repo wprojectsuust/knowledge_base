@@ -6,7 +6,7 @@ from src.use_cases.analyze_data import AnalyzeDataByLLMForNewData
 
 
 class NewData:
-    """Анализирует Data через AnalyzeDataByLLMForNewData, данные добавляет в хранилище (типа S3),
+    """Анализирует Data через AnalyzeDataByLLMForNewData, данные добавляет в хранилище (PostgreSQL),
     вопросы из AnalyzeDataByLLMForNewData уходят в векторную базу (типа chromabd).
     В векторной базе id векторов линкуют к данным по id"""
 
@@ -22,12 +22,12 @@ class NewData:
         self._vector_search_service = vector_search_service
         self._data_store_service = data_store_service
 
-    def execute(self, data: Data) -> bool:
+    async def execute(self, data: Data) -> bool:
         questions = self._analyze_data.execute(data)
         if not questions:
             return False
 
-        self._data_store_service.save(data)
+        await self._data_store_service.save(data)
         for question in questions:
             embedding = self._embedding_service.encode(question)
             self._vector_search_service.index(data.id, embedding)

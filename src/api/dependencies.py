@@ -2,7 +2,7 @@ import os
 from functools import lru_cache
 
 from src.repositories.chroma_vector_repository import ChromaVectorRepository
-from src.repositories.minio_data_repository import MinioDataRepository
+from src.repositories.postgres_data_repository import PostgresDataRepository
 from src.services.data_store_service import DataStoreService
 from src.services.embedding_service import EmbeddingService
 from src.services.llm_service import LLMService
@@ -31,14 +31,18 @@ def get_vector_search_service() -> VectorSearchService:
     return VectorSearchService(repository)
 
 
+def _postgres_dsn() -> str:
+    user = os.environ.get("POSTGRES_USER", "uunit")
+    password = os.environ.get("POSTGRES_PASSWORD", "uunit")
+    host = os.environ.get("POSTGRES_HOST", "localhost")
+    port = os.environ.get("POSTGRES_PORT", "5432")
+    database = os.environ.get("POSTGRES_DB", "uunit")
+    return f"postgresql://{user}:{password}@{host}:{port}/{database}"
+
+
 @lru_cache
 def get_data_store_service() -> DataStoreService:
-    repository = MinioDataRepository(
-        endpoint_url=os.environ["MINIO_ENDPOINT_URL"],
-        access_key=os.environ["MINIO_ACCESS_KEY"],
-        secret_key=os.environ["MINIO_SECRET_KEY"],
-        bucket=os.environ.get("MINIO_BUCKET", "uunit-data"),
-    )
+    repository = PostgresDataRepository(dsn=_postgres_dsn())
     return DataStoreService(repository)
 
 

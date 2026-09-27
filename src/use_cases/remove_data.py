@@ -7,7 +7,7 @@ class RemoveDataById:
         self._data_store_service = data_store_service
         self._vector_search_service = vector_search_service
 
-    def execute(self, id_: int) -> bool:
-        self._data_store_service.remove(id_)
+    async def execute(self, id_: int) -> bool:
+        await self._data_store_service.remove(id_)
         self._vector_search_service.remove(id_)
         return True

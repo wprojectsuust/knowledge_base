@@ -16,7 +16,7 @@ class Question:
         self._search_data = search_data
         self._analyze_data = analyze_data
 
-    def execute(self, question: str) -> str:
+    async def execute(self, question: str) -> str:
         really_questions = self._get_really_questions.execute(question)
-        data = self._search_data.execute(really_questions)
+        data = await self._search_data.execute(really_questions)
         return self._analyze_data.execute(question, data)

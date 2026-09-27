@@ -69,16 +69,16 @@ class FakeDataStoreService:
     def __init__(self) -> None:
         self.store: dict[int, Data] = {}
 
-    def get(self, id_: int) -> Data | None:
+    async def get(self, id_: int) -> Data | None:
         return self.store.get(id_)
 
-    def get_many(self, ids: list[int]) -> list[Data]:
+    async def get_many(self, ids: list[int]) -> list[Data]:
         return [self.store[id_] for id_ in ids if id_ in self.store]
 
-    def save(self, data: Data) -> None:
+    async def save(self, data: Data) -> None:
         self.store[data.id] = data
 
-    def remove(self, id_: int) -> None:
+    async def remove(self, id_: int) -> None:
         self.store.pop(id_, None)
 
 
@@ -103,29 +103,21 @@ def fake_chromadb(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
 
 
 @pytest.fixture
-def fake_boto3(monkeypatch: pytest.MonkeyPatch) -> tuple[MagicMock, type[Exception]]:
-    """Подменяет boto3/botocore в sys.modules, чтобы MinioDataRepository можно было
-    протестировать без реальной библиотеки. Возвращает (мок клиента, класс ClientError)."""
-    fake_client = MagicMock()
-    fake_client.list_buckets.return_value = {"Buckets": []}
+def fake_asyncpg_pool(monkeypatch: pytest.MonkeyPatch):
+    """Подменяет asyncpg в sys.modules, чтобы PostgresDataRepository можно было
+    протестировать без реальной библиотеки/базы. Возвращает мок пула (AsyncMock)."""
+    from unittest.mock import AsyncMock
 
-    fake_boto3_module = types.ModuleType("boto3")
-    fake_boto3_module.client = MagicMock(return_value=fake_client)
-    monkeypatch.setitem(sys.modules, "boto3", fake_boto3_module)
+    fake_pool = AsyncMock()
 
-    class FakeClientError(Exception):
-        def __init__(self, error_response: dict) -> None:
-            super().__init__(error_response)
-            self.response = error_response
+    async def _fake_create_pool(dsn, *args, **kwargs):
+        return fake_pool
 
-    fake_botocore = types.ModuleType("botocore")
-    fake_botocore_exceptions = types.ModuleType("botocore.exceptions")
-    fake_botocore_exceptions.ClientError = FakeClientError
-    fake_botocore.exceptions = fake_botocore_exceptions
-    monkeypatch.setitem(sys.modules, "botocore", fake_botocore)
-    monkeypatch.setitem(sys.modules, "botocore.exceptions", fake_botocore_exceptions)
+    fake_module = types.ModuleType("asyncpg")
+    fake_module.create_pool = _fake_create_pool
+    monkeypatch.setitem(sys.modules, "asyncpg", fake_module)
 
-    return fake_client, FakeClientError
+    return fake_pool
 
 
 @pytest.fixture
