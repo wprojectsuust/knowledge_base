@@ -34,13 +34,13 @@ def test_NewData() -> None:
 
 
 def test_SearchDataById() -> None:
-    data = SearchDataById(0)
+    data = SearchDataById.execute(0)
     assert isinstance(data, Data)
 
 
 def test_RemoveDataById() -> None:
-    assert RemoveDataById(0)
-    assert not SearchDataById(0)
+    assert RemoveDataById.execute(0)
+    assert not SearchDataById.execute(0)
 
 
 def test_AnalyzeDataByLLMForNewData() -> None:
