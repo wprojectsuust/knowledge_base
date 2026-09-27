@@ -7,7 +7,7 @@ from src.repositories.data_repository import DataRepository
 class DataStoreService:
     """Прокси к DataRepository - изолирует юз-кейсы от конкретной реализации хранилища данных."""
 
-    def __init__(self, data_repository: DataRepository) -> None:
+    def __init__(self, data_repository: DataRepository):
         self._data_repository = data_repository
 
     def get(self, id_: int) -> Data | None:
