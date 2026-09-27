@@ -28,14 +28,20 @@
 │   ├── domain
 │   │   ├── __init__.py
 │   │   ├── data.py
-│   │   └── division.py
+│   │   ├── division.py
+│   │   └── schedule.py
 │   ├── repositories
 │   │   ├── __init__.py
 │   │   ├── chroma_vector_repository.py
 │   │   ├── data_repository.py
+│   │   ├── isu_groups.json
+│   │   ├── isu_schedule_repository.py
 │   │   ├── postgres_data_repository.py
 │   │   ├── postgres_question_cache_repository.py
+│   │   ├── postgres_schedule_cache_repository.py
 │   │   ├── question_cache_repository.py
+│   │   ├── schedule_cache_repository.py
+│   │   ├── schedule_repository.py
 │   │   └── vector_repository.py
 │   ├── services
 │   │   ├── __init__.py
@@ -43,11 +49,14 @@
 │   │   ├── embedding_service.py
 │   │   ├── llm_service.py
 │   │   ├── question_cache_service.py
+│   │   ├── schedule_cache_service.py
+│   │   ├── schedule_service.py
 │   │   └── vector_search_service.py
 │   ├── use_cases
 │   │   ├── __init__.py
 │   │   ├── analyze_data.py
 │   │   ├── get_really_questions.py
+│   │   ├── get_schedule.py
 │   │   ├── new_data.py
 │   │   ├── question.py
 │   │   ├── remove_data.py
@@ -64,12 +73,15 @@
 │   │   └── test_knowledge_base_workflow_e2e.py
 │   ├── integration
 │   │   ├── test_chroma_vector_repository_integration.py
+│   │   ├── test_isu_schedule_repository_integration.py
 │   │   ├── test_postgres_data_repository_integration.py
 │   │   └── test_postgres_question_cache_repository_integration.py
 │   ├── repositories
 │   │   ├── test_chroma_vector_repository.py
+│   │   ├── test_isu_schedule_repository.py
 │   │   ├── test_postgres_data_repository.py
-│   │   └── test_postgres_question_cache_repository.py
+│   │   ├── test_postgres_question_cache_repository.py
+│   │   └── test_postgres_schedule_cache_repository.py
 │   ├── services
 │   │   ├── test_embedding_service.py
 │   │   └── test_llm_service.py
@@ -78,6 +90,7 @@
 │   ├── use_cases
 │   │   ├── test_analyze_data.py
 │   │   ├── test_get_really_questions.py
+│   │   ├── test_get_schedule.py
 │   │   ├── test_new_data.py
 │   │   ├── test_question.py
 │   │   ├── test_remove_data.py
@@ -96,16 +109,16 @@
 
 Строки кода
 ============================================================
-Всего файлов: 69
-Всего строк: 5860
+Всего файлов: 82
+Всего строк: 9123
 
 По расширениям:
-  .py                  2725
-  .json                2388
+  .json                4776
+  .py                  3589
+  (без расширения)     224
   .html                216
-  (без расширения)     214
   .md                  172
   .js                  61
-  .toml                40
+  .toml                41
   .yml                 26
   .example             18

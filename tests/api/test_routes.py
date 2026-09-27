@@ -11,6 +11,7 @@ from src.api.dependencies import (
 from src.domain.data import Data
 from src.use_cases.analyze_data import AnalyzeDataByLLMForUser
 from src.use_cases.get_really_questions import GetReallyQuestions
+from src.use_cases.get_schedule import GetSchedule
 from src.use_cases.new_data import NewData
 from src.use_cases.question import Question
 from src.use_cases.remove_data import RemoveDataById
@@ -41,6 +42,8 @@ async def test_ask_question_returns_answer_from_use_case(
     fake_vector_search_service,
     fake_data_store_service,
     fake_question_cache_service,
+    fake_schedule_service,
+    fake_schedule_cache_service,
 ) -> None:
     await fake_vector_search_service.index(sample_data.id, [1.0])
     fake_data_store_service.store[sample_data.id] = sample_data
@@ -48,7 +51,14 @@ async def test_ask_question_returns_answer_from_use_case(
     get_really_questions = GetReallyQuestions(make_fake_llm_service('["где деканат"]'))
     search_data = SearchDataByListOfStr(fake_embedding_service, fake_vector_search_service, fake_data_store_service)
     analyze_data = AnalyzeDataByLLMForUser(make_fake_llm_service("Деканат в корпусе 2."))
-    use_case = Question(get_really_questions, search_data, analyze_data, fake_question_cache_service)
+    get_schedule = GetSchedule(
+        fake_schedule_service,
+        fake_schedule_cache_service,
+        fake_embedding_service,
+        fake_vector_search_service,
+        fake_data_store_service,
+    )
+    use_case = Question(get_really_questions, search_data, analyze_data, fake_question_cache_service, get_schedule)
 
     client = _client_with_overrides({get_question_use_case: lambda: use_case})
 

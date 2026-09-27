@@ -1,16 +1,22 @@
 import os
 from functools import lru_cache
 
+from src import config
 from src.repositories.chroma_vector_repository import ChromaVectorRepository
+from src.repositories.isu_schedule_repository import IsuScheduleRepository
 from src.repositories.postgres_data_repository import PostgresDataRepository
 from src.repositories.postgres_question_cache_repository import PostgresQuestionCacheRepository
+from src.repositories.postgres_schedule_cache_repository import PostgresScheduleCacheRepository
 from src.services.data_store_service import DataStoreService
 from src.services.embedding_service import EmbeddingService
 from src.services.llm_service import LLMService
 from src.services.question_cache_service import QuestionCacheService
+from src.services.schedule_cache_service import ScheduleCacheService
+from src.services.schedule_service import ScheduleService
 from src.services.vector_search_service import VectorSearchService
 from src.use_cases.analyze_data import AnalyzeDataByLLMForNewData, AnalyzeDataByLLMForUser
 from src.use_cases.get_really_questions import GetReallyQuestions
+from src.use_cases.get_schedule import GetSchedule
 from src.use_cases.new_data import NewData
 from src.use_cases.question import Question
 from src.use_cases.remove_data import RemoveDataById
@@ -54,6 +60,17 @@ def get_question_cache_service() -> QuestionCacheService:
     return QuestionCacheService(repository)
 
 
+@lru_cache
+def get_schedule_service() -> ScheduleService:
+    return ScheduleService(IsuScheduleRepository())
+
+
+@lru_cache
+def get_schedule_cache_service() -> ScheduleCacheService:
+    repository = PostgresScheduleCacheRepository(dsn=_postgres_dsn(), ttl_seconds=config.SCHEDULE_CACHE_TTL_SECONDS)
+    return ScheduleCacheService(repository)
+
+
 def get_get_really_questions_use_case() -> GetReallyQuestions:
     return GetReallyQuestions(get_llm_service())
 
@@ -91,10 +108,21 @@ def get_new_data_use_case() -> NewData:
     )
 
 
+def get_get_schedule_use_case() -> GetSchedule:
+    return GetSchedule(
+        get_schedule_service(),
+        get_schedule_cache_service(),
+        get_embedding_service(),
+        get_vector_search_service(),
+        get_data_store_service(),
+    )
+
+
 def get_question_use_case() -> Question:
     return Question(
         get_get_really_questions_use_case(),
         get_search_data_use_case(),
         get_analyze_data_for_user_use_case(),
         get_question_cache_service(),
+        get_get_schedule_use_case(),
     )

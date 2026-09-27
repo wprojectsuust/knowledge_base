@@ -19,7 +19,13 @@ class ChromaVectorRepository:
 
         logger.info("Chroma: открываю персистентный клиент path=%s collection=%s", persist_path, collection_name)
         self._client = chromadb.PersistentClient(path=persist_path)
-        self._collection = self._client.get_or_create_collection(collection_name)
+        # hnsw:space="cosine" применяется только при первом создании коллекции - для уже
+        # существующей на диске коллекции без этого metadata останется l2 (не критично для
+        # ранжирования на нормализованных эмбеддингах, но важно для честных cosine-очков
+        # в query_with_scores).
+        self._collection = self._client.get_or_create_collection(
+            collection_name, metadata={"hnsw:space": "cosine"}
+        )
         logger.info("Chroma: коллекция готова, векторов в ней: %d", self._collection.count())
 
     def query(self, embedding: list[float], n_results: int = 6, division: str | None = None) -> list[int]:
@@ -35,6 +41,20 @@ class ChromaVectorRepository:
         found_ids = [int(metadata["data_id"]) for metadata in results["metadatas"][0]]
         logger.debug("Chroma query: найдено data_id=%s", found_ids)
         return found_ids
+
+    def query_with_scores(self, embedding: list[float], n_results: int = 6) -> list[tuple[int, float]]:
+        count = self._collection.count()
+        logger.debug("Chroma query_with_scores: в коллекции %d векторов, n_results=%d", count, n_results)
+        if count == 0:
+            return []
+
+        results = self._collection.query(query_embeddings=[embedding], n_results=min(n_results, count))
+        scored = [
+            (int(metadata["data_id"]), 1.0 - distance)
+            for metadata, distance in zip(results["metadatas"][0], results["distances"][0])
+        ]
+        logger.debug("Chroma query_with_scores: %s", scored)
+        return scored
 
     def add(self, id_: int, embedding: list[float], division: str | None = None) -> None:
         vector_id = f"{id_}-{uuid4().hex}"

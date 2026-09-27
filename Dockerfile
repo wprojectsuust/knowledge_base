@@ -18,6 +18,7 @@ RUN pip install --no-cache-dir \
     "chromadb>=0.5.0" \
     "sentence-transformers>=3.0.0" \
     "asyncpg>=0.29.0" \
+    "beautifulsoup4>=4.12.0" \
     "pytest>=8.0.0" \
     "pytest-cov>=5.0.0" \
     "pytest-asyncio>=0.24.0"

@@ -8,6 +8,7 @@ from src.api.dependencies import (
     get_embedding_service,
     get_llm_service,
     get_question_cache_service,
+    get_schedule_cache_service,
     get_vector_search_service,
 )
 from src.api.routes import router
@@ -42,6 +43,12 @@ async def lifespan(app: FastAPI):
         logger.info("PostgreSQL (кэш вопросов): пул подключений готов")
     except Exception:
         logger.exception("PostgreSQL (кэш вопросов): не удалось подключиться заранее, будет создано лениво при первом запросе")
+
+    try:
+        await get_schedule_cache_service().connect()
+        logger.info("PostgreSQL (кэш расписания): пул подключений готов")
+    except Exception:
+        logger.exception("PostgreSQL (кэш расписания): не удалось подключиться заранее, будет создано лениво при первом запросе")
 
     logger.info("Сервер готов принимать запросы")
     yield

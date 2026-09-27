@@ -56,12 +56,17 @@ class FakeVectorSearchService:
     def __init__(self) -> None:
         self.index_calls: dict[int, list[float]] = {}
         self.divisions: dict[int, str | None] = {}
+        self.scores: dict[int, float] = {}
 
     async def search(self, embedding: list[float], n_results: int = 6, division: str | None = None) -> list[int]:
         ids = list(self.index_calls.keys())
         if division:
             ids = [id_ for id_ in ids if self.divisions.get(id_) == division]
         return ids[:n_results]
+
+    async def search_with_scores(self, embedding: list[float], n_results: int = 6) -> list[tuple[int, float]]:
+        scored = [(id_, self.scores.get(id_, 1.0)) for id_ in self.index_calls]
+        return scored[:n_results]
 
     async def index(self, id_: int, embedding: list[float], division: str | None = None) -> None:
         self.index_calls[id_] = embedding
@@ -70,6 +75,7 @@ class FakeVectorSearchService:
     async def remove(self, id_: int) -> None:
         self.index_calls.pop(id_, None)
         self.divisions.pop(id_, None)
+        self.scores.pop(id_, None)
 
 
 @pytest.fixture
@@ -117,6 +123,37 @@ class FakeQuestionCacheService:
 @pytest.fixture
 def fake_question_cache_service() -> FakeQuestionCacheService:
     return FakeQuestionCacheService()
+
+
+class FakeScheduleService:
+    def __init__(self) -> None:
+        self.schedules: dict[tuple[str, str], object] = {}
+        self.call_count = 0
+
+    async def get_day_schedule(self, group: str, date: str):
+        self.call_count += 1
+        return self.schedules.get((group, date))
+
+
+@pytest.fixture
+def fake_schedule_service() -> FakeScheduleService:
+    return FakeScheduleService()
+
+
+class FakeScheduleCacheService:
+    def __init__(self) -> None:
+        self.store: dict[tuple[str, str], object] = {}
+
+    async def get(self, group: str, date: str):
+        return self.store.get((group, date))
+
+    async def save(self, day_schedule) -> None:
+        self.store[(day_schedule.group, day_schedule.date)] = day_schedule
+
+
+@pytest.fixture
+def fake_schedule_cache_service() -> FakeScheduleCacheService:
+    return FakeScheduleCacheService()
 
 
 @pytest.fixture
