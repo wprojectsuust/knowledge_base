@@ -7,6 +7,7 @@ from src.api.dependencies import (
     get_data_store_service,
     get_embedding_service,
     get_llm_service,
+    get_question_cache_service,
     get_vector_search_service,
 )
 from src.api.routes import router
@@ -32,9 +33,15 @@ async def lifespan(app: FastAPI):
 
     try:
         await get_data_store_service().connect()
-        logger.info("PostgreSQL: пул подключений готов")
+        logger.info("PostgreSQL (документы): пул подключений готов")
     except Exception:
-        logger.exception("PostgreSQL: не удалось подключиться заранее, будет создано лениво при первом запросе")
+        logger.exception("PostgreSQL (документы): не удалось подключиться заранее, будет создано лениво при первом запросе")
+
+    try:
+        await get_question_cache_service().connect()
+        logger.info("PostgreSQL (кэш вопросов): пул подключений готов")
+    except Exception:
+        logger.exception("PostgreSQL (кэш вопросов): не удалось подключиться заранее, будет создано лениво при первом запросе")
 
     logger.info("Сервер готов принимать запросы")
     yield

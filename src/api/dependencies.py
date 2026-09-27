@@ -3,9 +3,11 @@ from functools import lru_cache
 
 from src.repositories.chroma_vector_repository import ChromaVectorRepository
 from src.repositories.postgres_data_repository import PostgresDataRepository
+from src.repositories.postgres_question_cache_repository import PostgresQuestionCacheRepository
 from src.services.data_store_service import DataStoreService
 from src.services.embedding_service import EmbeddingService
 from src.services.llm_service import LLMService
+from src.services.question_cache_service import QuestionCacheService
 from src.services.vector_search_service import VectorSearchService
 from src.use_cases.analyze_data import AnalyzeDataByLLMForNewData, AnalyzeDataByLLMForUser
 from src.use_cases.get_really_questions import GetReallyQuestions
@@ -44,6 +46,12 @@ def _postgres_dsn() -> str:
 def get_data_store_service() -> DataStoreService:
     repository = PostgresDataRepository(dsn=_postgres_dsn())
     return DataStoreService(repository)
+
+
+@lru_cache
+def get_question_cache_service() -> QuestionCacheService:
+    repository = PostgresQuestionCacheRepository(dsn=_postgres_dsn())
+    return QuestionCacheService(repository)
 
 
 def get_get_really_questions_use_case() -> GetReallyQuestions:
@@ -88,4 +96,5 @@ def get_question_use_case() -> Question:
         get_get_really_questions_use_case(),
         get_search_data_use_case(),
         get_analyze_data_for_user_use_case(),
+        get_question_cache_service(),
     )

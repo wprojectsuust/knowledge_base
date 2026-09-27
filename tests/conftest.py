@@ -17,9 +17,11 @@ class FakeLLMService:
     def __init__(self, response: str = "") -> None:
         self.response = response
         self.last_prompt: str | None = None
+        self.call_count = 0
 
     def generate(self, prompt: str) -> str:
         self.last_prompt = prompt
+        self.call_count += 1
         return self.response
 
 
@@ -37,7 +39,11 @@ def fake_llm_service(make_fake_llm_service: Callable[[str], FakeLLMService]) -> 
 
 
 class FakeEmbeddingService:
+    def __init__(self) -> None:
+        self.call_count = 0
+
     def encode(self, text: str) -> list[float]:
+        self.call_count += 1
         return [float(len(text))]
 
 
@@ -89,6 +95,22 @@ class FakeDataStoreService:
 @pytest.fixture
 def fake_data_store_service() -> FakeDataStoreService:
     return FakeDataStoreService()
+
+
+class FakeQuestionCacheService:
+    def __init__(self) -> None:
+        self.store: dict[str, str] = {}
+
+    async def get(self, question: str) -> str | None:
+        return self.store.get(question)
+
+    async def save(self, question: str, answer: str) -> None:
+        self.store[question] = answer
+
+
+@pytest.fixture
+def fake_question_cache_service() -> FakeQuestionCacheService:
+    return FakeQuestionCacheService()
 
 
 @pytest.fixture

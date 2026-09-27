@@ -26,7 +26,11 @@ def _client_with_overrides(overrides: dict) -> TestClient:
 
 
 async def test_ask_question_returns_answer_from_use_case(
-    make_fake_llm_service, fake_embedding_service, fake_vector_search_service, fake_data_store_service
+    make_fake_llm_service,
+    fake_embedding_service,
+    fake_vector_search_service,
+    fake_data_store_service,
+    fake_question_cache_service,
 ) -> None:
     await fake_vector_search_service.index(sample_data.id, [1.0])
     fake_data_store_service.store[sample_data.id] = sample_data
@@ -34,7 +38,7 @@ async def test_ask_question_returns_answer_from_use_case(
     get_really_questions = GetReallyQuestions(make_fake_llm_service('["где деканат"]'))
     search_data = SearchDataByListOfStr(fake_embedding_service, fake_vector_search_service, fake_data_store_service)
     analyze_data = AnalyzeDataByLLMForUser(make_fake_llm_service("Деканат в корпусе 2."))
-    use_case = Question(get_really_questions, search_data, analyze_data)
+    use_case = Question(get_really_questions, search_data, analyze_data, fake_question_cache_service)
 
     client = _client_with_overrides({get_question_use_case: lambda: use_case})
 
