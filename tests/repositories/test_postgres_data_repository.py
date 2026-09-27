@@ -15,6 +15,15 @@ async def test_creates_documents_table_on_first_use(fake_asyncpg_pool) -> None:
     assert "CREATE TABLE IF NOT EXISTS documents" in create_table_call.args[0]
 
 
+async def test_adds_division_column_for_tables_created_before_it_existed(fake_asyncpg_pool) -> None:
+    repo = _make_repo()
+
+    await repo.get(1)
+
+    alter_column_call = fake_asyncpg_pool.execute.call_args_list[1]
+    assert "ALTER TABLE documents ADD COLUMN IF NOT EXISTS division" in alter_column_call.args[0]
+
+
 async def test_pool_is_created_only_once(fake_asyncpg_pool) -> None:
     repo = _make_repo()
 

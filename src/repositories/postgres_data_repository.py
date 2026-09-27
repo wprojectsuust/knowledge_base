@@ -11,10 +11,13 @@ _CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS documents (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     source TEXT NOT NULL,
-    content TEXT NOT NULL,
-    division TEXT NULL
+    content TEXT NOT NULL
 )
 """
+
+# CREATE TABLE IF NOT EXISTS не трогает уже существующую таблицу - для тех, кто успел
+# развернуть БД до появления division, докатываем колонку отдельно и идемпотентно.
+_ADD_DIVISION_COLUMN_SQL = "ALTER TABLE documents ADD COLUMN IF NOT EXISTS division TEXT NULL"
 
 _SELECT_ONE_SQL = "SELECT id, source, content, division FROM documents WHERE id = $1"
 _SELECT_MANY_SQL = "SELECT id, source, content, division FROM documents WHERE id = ANY($1::int[])"
@@ -39,6 +42,7 @@ class PostgresDataRepository:
             logger.debug("PostgreSQL: создаю пул подключений")
             self._pool = await asyncpg.create_pool(self._dsn)
             await self._pool.execute(_CREATE_TABLE_SQL)
+            await self._pool.execute(_ADD_DIVISION_COLUMN_SQL)
             logger.debug("PostgreSQL: таблица documents готова")
         return self._pool
 

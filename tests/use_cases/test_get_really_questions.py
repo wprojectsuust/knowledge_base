@@ -11,6 +11,15 @@ async def test_extracts_questions_from_llm_json_response(fake_llm_service) -> No
     assert result == ["Где находится деканат?"]
 
 
+async def test_prompt_includes_the_actual_user_message(fake_llm_service) -> None:
+    fake_llm_service.response = "[]"
+    use_case = GetReallyQuestions(fake_llm_service)
+
+    await use_case.execute(question="Где находится деканат?")
+
+    assert "Где находится деканат?" in fake_llm_service.last_prompt
+
+
 async def test_returns_empty_list_when_llm_gives_nothing_useful(fake_llm_service) -> None:
     fake_llm_service.response = "[]"
     use_case = GetReallyQuestions(fake_llm_service)
