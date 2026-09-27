@@ -30,5 +30,5 @@ class NewData:
         await self._data_store_service.save(data)
         for question in questions:
             embedding = self._embedding_service.encode(question)
-            self._vector_search_service.index(data.id, embedding)
+            await self._vector_search_service.index(data.id, embedding)
         return True

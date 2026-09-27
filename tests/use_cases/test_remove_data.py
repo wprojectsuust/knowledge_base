@@ -5,7 +5,7 @@ async def test_remove_data_by_id_clears_both_stores(
     sample_data, fake_data_store_service, fake_vector_search_service
 ) -> None:
     fake_data_store_service.store[sample_data.id] = sample_data
-    fake_vector_search_service.index(sample_data.id, [1.0])
+    await fake_vector_search_service.index(sample_data.id, [1.0])
     use_case = RemoveDataById(fake_data_store_service, fake_vector_search_service)
 
     assert await use_case.execute(sample_data.id) is True

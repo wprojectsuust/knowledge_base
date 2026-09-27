@@ -50,13 +50,13 @@ class FakeVectorSearchService:
     def __init__(self) -> None:
         self.index_calls: dict[int, list[float]] = {}
 
-    def search(self, embedding: list[float], n_results: int = 6) -> list[int]:
+    async def search(self, embedding: list[float], n_results: int = 6) -> list[int]:
         return list(self.index_calls.keys())[:n_results]
 
-    def index(self, id_: int, embedding: list[float]) -> None:
+    async def index(self, id_: int, embedding: list[float]) -> None:
         self.index_calls[id_] = embedding
 
-    def remove(self, id_: int) -> None:
+    async def remove(self, id_: int) -> None:
         self.index_calls.pop(id_, None)
 
 

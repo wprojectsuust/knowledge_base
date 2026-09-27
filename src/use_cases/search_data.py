@@ -25,7 +25,7 @@ class SearchDataByListOfStr:
         ids: list[int] = []
         for question in really_question:
             embedding = self._embedding_service.encode(question)
-            for id_ in self._vector_search_service.search(embedding, self._n_results):
+            for id_ in await self._vector_search_service.search(embedding, self._n_results):
                 if id_ not in seen:
                     seen.add(id_)
                     ids.append(id_)

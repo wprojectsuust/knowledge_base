@@ -9,7 +9,7 @@ test_question = "Мне сказали что для X нужно пойти в 
 async def test_question_orchestrates_full_flow(
     sample_data, make_fake_llm_service, fake_embedding_service, fake_vector_search_service, fake_data_store_service
 ) -> None:
-    fake_vector_search_service.index(sample_data.id, [1.0])
+    await fake_vector_search_service.index(sample_data.id, [1.0])
     fake_data_store_service.store[sample_data.id] = sample_data
 
     get_really_questions = GetReallyQuestions(make_fake_llm_service(f'["{test_question}"]'))

@@ -9,5 +9,5 @@ class RemoveDataById:
 
     async def execute(self, id_: int) -> bool:
         await self._data_store_service.remove(id_)
-        self._vector_search_service.remove(id_)
+        await self._vector_search_service.remove(id_)
         return True

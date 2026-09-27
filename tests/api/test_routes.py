@@ -25,10 +25,10 @@ def _client_with_overrides(overrides: dict) -> TestClient:
     return TestClient(app)
 
 
-def test_ask_question_returns_answer_from_use_case(
+async def test_ask_question_returns_answer_from_use_case(
     make_fake_llm_service, fake_embedding_service, fake_vector_search_service, fake_data_store_service
 ) -> None:
-    fake_vector_search_service.index(sample_data.id, [1.0])
+    await fake_vector_search_service.index(sample_data.id, [1.0])
     fake_data_store_service.store[sample_data.id] = sample_data
 
     get_really_questions = GetReallyQuestions(make_fake_llm_service('["где деканат"]'))
@@ -44,8 +44,10 @@ def test_ask_question_returns_answer_from_use_case(
     assert response.json() == {"answer": "Деканат в корпусе 2."}
 
 
-def test_search_returns_matched_data(fake_embedding_service, fake_vector_search_service, fake_data_store_service) -> None:
-    fake_vector_search_service.index(sample_data.id, [1.0])
+async def test_search_returns_matched_data(
+    fake_embedding_service, fake_vector_search_service, fake_data_store_service
+) -> None:
+    await fake_vector_search_service.index(sample_data.id, [1.0])
     fake_data_store_service.store[sample_data.id] = sample_data
     use_case = SearchDataByListOfStr(fake_embedding_service, fake_vector_search_service, fake_data_store_service)
 

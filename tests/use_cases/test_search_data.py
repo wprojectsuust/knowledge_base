@@ -4,7 +4,7 @@ from src.use_cases.search_data import SearchDataById, SearchDataByListOfStr
 async def test_search_by_list_of_str_dedupes_ids_across_questions(
     sample_data, fake_embedding_service, fake_vector_search_service, fake_data_store_service
 ) -> None:
-    fake_vector_search_service.index(sample_data.id, [1.0])
+    await fake_vector_search_service.index(sample_data.id, [1.0])
     fake_data_store_service.store[sample_data.id] = sample_data
     use_case = SearchDataByListOfStr(fake_embedding_service, fake_vector_search_service, fake_data_store_service)
 
