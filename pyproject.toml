@@ -32,5 +32,9 @@ include = ["src*"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
-addopts = "--cov=src --cov-report=term-missing"
+addopts = "--cov=src --cov-report=term-missing -m \"not integration and not e2e\""
 asyncio_mode = "auto"
+markers = [
+    "integration: talks to a real Postgres/Chroma (docker compose up), no mocks",
+    "e2e: hits the actual running HTTP server end to end, needs the full stack up",
+]

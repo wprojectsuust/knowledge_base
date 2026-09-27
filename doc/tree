@@ -1,0 +1,101 @@
+Структура проекта
+============================================================
+
+.
+├── .githooks
+│   └── pre-commit
+├── doc
+│   ├── adrs
+│   │   ├── 000-clean-architecture-tdd-two-databases.md
+│   │   └── 001-relational-db-for-documents.md
+│   └── tree
+├── scripts
+│   └── tree.py
+├── src
+│   ├── api
+│   │   ├── __init__.py
+│   │   ├── app.py
+│   │   ├── dependencies.py
+│   │   ├── routes.py
+│   │   └── schemas.py
+│   ├── domain
+│   │   ├── __init__.py
+│   │   ├── data.py
+│   │   └── division.py
+│   ├── repositories
+│   │   ├── __init__.py
+│   │   ├── chroma_vector_repository.py
+│   │   ├── data_repository.py
+│   │   ├── postgres_data_repository.py
+│   │   ├── postgres_question_cache_repository.py
+│   │   ├── question_cache_repository.py
+│   │   └── vector_repository.py
+│   ├── services
+│   │   ├── __init__.py
+│   │   ├── data_store_service.py
+│   │   ├── embedding_service.py
+│   │   ├── llm_service.py
+│   │   ├── question_cache_service.py
+│   │   └── vector_search_service.py
+│   ├── use_cases
+│   │   ├── __init__.py
+│   │   ├── analyze_data.py
+│   │   ├── get_really_questions.py
+│   │   ├── new_data.py
+│   │   ├── question.py
+│   │   ├── remove_data.py
+│   │   └── search_data.py
+│   ├── __init__.py
+│   └── logging_utils.py
+├── tests
+│   ├── api
+│   │   └── test_routes.py
+│   ├── domain
+│   │   └── test_division.py
+│   ├── e2e
+│   │   └── test_knowledge_base_workflow_e2e.py
+│   ├── integration
+│   │   ├── test_chroma_vector_repository_integration.py
+│   │   ├── test_postgres_data_repository_integration.py
+│   │   └── test_postgres_question_cache_repository_integration.py
+│   ├── repositories
+│   │   ├── test_chroma_vector_repository.py
+│   │   ├── test_postgres_data_repository.py
+│   │   └── test_postgres_question_cache_repository.py
+│   ├── services
+│   │   ├── test_embedding_service.py
+│   │   └── test_llm_service.py
+│   ├── stress
+│   │   └── question_load_test.js
+│   ├── use_cases
+│   │   ├── test_analyze_data.py
+│   │   ├── test_get_really_questions.py
+│   │   ├── test_new_data.py
+│   │   ├── test_question.py
+│   │   ├── test_remove_data.py
+│   │   └── test_search_data.py
+│   └── conftest.py
+├── .dockerignore
+├── .env.example
+├── .gitignore
+├── Dockerfile
+├── Makefile
+├── README.md
+├── TODO
+├── docker-compose.yml
+├── main.py
+└── pyproject.toml
+
+Строки кода
+============================================================
+Всего файлов: 64
+Всего строк: 2896
+
+По расширениям:
+  .py                  2465
+  (без расширения)     214
+  .md                  72
+  .js                  61
+  .toml                40
+  .yml                 26
+  .example             18
