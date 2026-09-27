@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime as dt
 import json
 import logging
 
@@ -81,7 +82,9 @@ class PostgresScheduleCacheRepository:
     async def get(self, group: str, date: str) -> DaySchedule | None:
         pool = await self._get_pool()
         logger.debug("ScheduleCache get: group=%s date=%s", group, date)
-        row = await pool.fetchrow(_SELECT_SQL, group, date, self._ttl_seconds)
+        # DATE-колонка - asyncpg кодирует параметр своим кодеком, которому нужен настоящий
+        # datetime.date (у него есть .toordinal()), а не строка ISO.
+        row = await pool.fetchrow(_SELECT_SQL, group, dt.date.fromisoformat(date), self._ttl_seconds)
         if row is None:
             logger.debug("ScheduleCache get: miss (нет записи или протухла)")
             return None
@@ -92,4 +95,6 @@ class PostgresScheduleCacheRepository:
         pool = await self._get_pool()
         logger.debug("ScheduleCache save: group=%s date=%s", day_schedule.group, day_schedule.date)
         payload = _day_schedule_to_payload(day_schedule)
-        await pool.execute(_UPSERT_SQL, day_schedule.group, day_schedule.date, payload)
+        await pool.execute(
+            _UPSERT_SQL, day_schedule.group, dt.date.fromisoformat(day_schedule.date), payload
+        )

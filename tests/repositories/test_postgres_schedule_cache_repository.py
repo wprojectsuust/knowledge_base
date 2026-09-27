@@ -1,3 +1,4 @@
+import datetime as dt
 import json
 
 from src.domain.schedule import DaySchedule, ScheduleLesson
@@ -44,7 +45,7 @@ async def test_get_deserializes_cached_payload(fake_asyncpg_pool) -> None:
     assert result == sample_schedule
     args, _ = fake_asyncpg_pool.fetchrow.call_args
     assert args[1] == "1-1.1.1.-26А"
-    assert args[2] == "2026-09-30"
+    assert args[2] == dt.date(2026, 9, 30)
     assert args[3] == 3600
 
 
@@ -57,7 +58,7 @@ async def test_save_upserts_serialized_payload(fake_asyncpg_pool) -> None:
     assert "INSERT INTO schedule_cache" in args[0]
     assert "ON CONFLICT (group_name, schedule_date) DO UPDATE" in args[0]
     assert args[1] == "1-1.1.1.-26А"
-    assert args[2] == "2026-09-30"
+    assert args[2] == dt.date(2026, 9, 30)
     assert json.loads(args[3]) == {
         "day_label": "Среда 30.09.2026",
         "lessons": [{"time": "09:00", "subject": "Матанализ", "venue": "ауд. 305"}],
