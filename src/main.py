@@ -16,25 +16,25 @@ class Question:
         ...
 
 
-class GetReallyQuestion:
-    """Выделяет реальный вопрос из промпта юзера"""
+class GetReallyQuestions:
+    """Выделяет реальные вопросы из промпта юзера - они же будут потом превращаться в embending и искаться в векторной базе"""
 
     @staticmethod
-    def execute(question: str) -> str:
+    def execute(question: str) -> list[str]:
         ...
 
 
-class SearchDataByText:
+class SearchDataByListOfStr:
     """Будет искать И в chromabd И в S3 через сервисы после -> репо"""
 
     @staticmethod
-    def execute(really_question: str) -> Data:
+    def execute(really_question: list[str]) -> list[Data]:
         ...
 
 
 class AnalyzeDataByLLMForUser:
     @staticmethod
-    def execute(prompt: str, data: Data) -> str:
+    def execute(prompt: str, data: list[Data]) -> str:
         ...
 
 

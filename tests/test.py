@@ -1,7 +1,8 @@
-from src.main import Question, SearchDataByText, GetReallyQuestion, AnalyzeDataByLLMForUser, NewData, Data, \
+from src.main import Question, SearchDataByListOfStr, GetReallyQuestions, AnalyzeDataByLLMForUser, NewData, Data, \
     SearchDataById, RemoveDataById, AnalyzeDataByLLMForNewData
 
 test_data = Data(id=0, source='example.com', content="Деканат находится в корпусе 2")
+test_task = "Мне сказали что для X нужно пойти в Y, где это?"
 
 
 def test_Question() -> None:
@@ -10,21 +11,20 @@ def test_Question() -> None:
     assert len(answer) > 10
 
 
-def test_GetReallyQuestion() -> None:
-    task = "Мне сказали что для X нужно пойти в Y, где это?"
-    really_question = GetReallyQuestion.execute(question=task)
-    assert isinstance(really_question, str)
-    assert 0 < len(really_question) <= len(task)
+def test_GetReallyQuestions() -> None:
+    really_questions = GetReallyQuestions.execute(question=test_task)
+    assert isinstance(really_questions, list)
+    assert 0 < len(really_questions)
 
 
 def test_SearchDataByText() -> None:
-    data = SearchDataByText.execute(really_question="Где находится деканат?")
-    assert isinstance(data, Data)
+    data = SearchDataByListOfStr.execute(really_question=["Где находится деканат?"])
+    assert isinstance(data, list)
+    assert isinstance(data[0], Data)
 
 
 def test_AnalyzeDataByLLMForUser() -> None:
-    prompt = "Мне сказали что для X нужно пойти в Y, где это?"
-    result = AnalyzeDataByLLMForUser.execute(prompt=prompt, data=test_data)
+    result = AnalyzeDataByLLMForUser.execute(prompt=test_task, data=[test_data])
     assert isinstance(result, str)
     assert len(result) > 5
 
