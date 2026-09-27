@@ -2,6 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# torch тянется sentence-transformers, а по умолчанию на Linux ставится с полным
+# набором CUDA-библиотек (nvidia-cu13-*, несколько ГБ) даже без GPU в образе.
+# Ставим CPU-only колесо заранее, чтобы sentence-transformers его просто переиспользовал.
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
 # Держите список в синхроне с pyproject.toml: [project.dependencies] + [project.optional-dependencies].dev
 RUN pip install --no-cache-dir \
     "fastapi>=0.110.0" \
