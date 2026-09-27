@@ -7,7 +7,7 @@ from src.api.dependencies import (
     get_search_data_by_id_use_case,
     get_search_data_use_case,
 )
-from src.api.schemas import DataIn, DataOut, OkResponse, QuestionRequest, QuestionResponse, SearchRequest
+from src.api.schemas import DataCreated, DataIn, DataOut, OkResponse, QuestionRequest, QuestionResponse, SearchRequest
 from src.domain.data import Data
 from src.use_cases.new_data import NewData
 from src.use_cases.question import Question
@@ -33,11 +33,13 @@ async def search_data(
     return [DataOut(id=item.id, source=item.source, content=item.content) for item in found]
 
 
-@router.post("/data", response_model=OkResponse)
-async def add_data(payload: DataIn, use_case: NewData = Depends(get_new_data_use_case)) -> OkResponse:
-    data = Data(id=payload.id, source=payload.source, content=payload.content)
-    ok = await use_case.execute(data)
-    return OkResponse(ok=ok)
+@router.post("/data", response_model=DataCreated)
+async def add_data(payload: DataIn, use_case: NewData = Depends(get_new_data_use_case)) -> DataCreated:
+    data = Data(source=payload.source, content=payload.content)
+    new_id = await use_case.execute(data)
+    if new_id is None:
+        raise HTTPException(status_code=422, detail="Не удалось проиндексировать данные")
+    return DataCreated(id=new_id)
 
 
 @router.get("/data/{id_}", response_model=DataOut)

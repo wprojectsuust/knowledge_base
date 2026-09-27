@@ -28,7 +28,6 @@ class AnalyzeDataByLLMForNewData:
     def execute(self, data: Data) -> list[str]:
         prompt = (
             "К тебе поступает фрагмент базы знаний:\n"
-            f"ID: {data.id}\n"
             f"Источник: {data.source}\n"
             f'Содержимое: "{data.content}"\n\n'
             "Сгенерируй ровно 5 различных естественных поисковых вопросов "

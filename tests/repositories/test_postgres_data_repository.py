@@ -69,15 +69,18 @@ async def test_get_many_maps_rows_to_data(sample_data, fake_asyncpg_pool) -> Non
     assert args[1] == [sample_data.id, 999]
 
 
-async def test_save_upserts_document(sample_data, fake_asyncpg_pool) -> None:
+async def test_save_inserts_new_document_and_returns_generated_id(fake_asyncpg_pool) -> None:
+    fake_asyncpg_pool.fetchval.return_value = 42
     repo = _make_repo()
+    new_document = Data(source="example.com", content="Деканат находится в корпусе 2")
 
-    await repo.save(sample_data)
+    new_id = await repo.save(new_document)
 
-    args, _ = fake_asyncpg_pool.execute.call_args
+    assert new_id == 42
+    args, _ = fake_asyncpg_pool.fetchval.call_args
     assert "INSERT INTO documents" in args[0]
-    assert "ON CONFLICT (id) DO UPDATE" in args[0]
-    assert args[1:] == (sample_data.id, sample_data.source, sample_data.content)
+    assert "RETURNING id" in args[0]
+    assert args[1:] == (new_document.source, new_document.content)
 
 
 async def test_delete_removes_document(fake_asyncpg_pool) -> None:

@@ -68,6 +68,7 @@ def fake_vector_search_service() -> FakeVectorSearchService:
 class FakeDataStoreService:
     def __init__(self) -> None:
         self.store: dict[int, Data] = {}
+        self._next_id = 1
 
     async def get(self, id_: int) -> Data | None:
         return self.store.get(id_)
@@ -75,8 +76,11 @@ class FakeDataStoreService:
     async def get_many(self, ids: list[int]) -> list[Data]:
         return [self.store[id_] for id_ in ids if id_ in self.store]
 
-    async def save(self, data: Data) -> None:
-        self.store[data.id] = data
+    async def save(self, data: Data) -> int:
+        new_id = self._next_id
+        self._next_id += 1
+        self.store[new_id] = Data(id=new_id, source=data.source, content=data.content)
+        return new_id
 
     async def remove(self, id_: int) -> None:
         self.store.pop(id_, None)

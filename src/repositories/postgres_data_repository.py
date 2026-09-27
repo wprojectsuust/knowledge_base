@@ -4,7 +4,7 @@ from src.domain.data import Data
 
 _CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS documents (
-    id INTEGER PRIMARY KEY,
+    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     source TEXT NOT NULL,
     content TEXT NOT NULL
 )
@@ -12,15 +12,15 @@ CREATE TABLE IF NOT EXISTS documents (
 
 _SELECT_ONE_SQL = "SELECT id, source, content FROM documents WHERE id = $1"
 _SELECT_MANY_SQL = "SELECT id, source, content FROM documents WHERE id = ANY($1::int[])"
-_UPSERT_SQL = """
-INSERT INTO documents (id, source, content) VALUES ($1, $2, $3)
-ON CONFLICT (id) DO UPDATE SET source = EXCLUDED.source, content = EXCLUDED.content
-"""
+_INSERT_SQL = "INSERT INTO documents (source, content) VALUES ($1, $2) RETURNING id"
 _DELETE_SQL = "DELETE FROM documents WHERE id = $1"
 
 
 class PostgresDataRepository:
-    """DataRepository поверх PostgreSQL: доступ через asyncpg, нативный SQL без ORM."""
+    """DataRepository поверх PostgreSQL: доступ через asyncpg, нативный SQL без ORM.
+
+    id генерируется базой (GENERATED ALWAYS AS IDENTITY) - save() всегда создаёт
+    новую запись и возвращает присвоенный id, клиент id не передаёт."""
 
     def __init__(self, dsn: str) -> None:
         self._dsn = dsn
@@ -50,9 +50,9 @@ class PostgresDataRepository:
         rows = await pool.fetch(_SELECT_MANY_SQL, ids)
         return [self._row_to_data(row) for row in rows]
 
-    async def save(self, data: Data) -> None:
+    async def save(self, data: Data) -> int:
         pool = await self._get_pool()
-        await pool.execute(_UPSERT_SQL, data.id, data.source, data.content)
+        return await pool.fetchval(_INSERT_SQL, data.source, data.content)
 
     async def delete(self, id_: int) -> None:
         pool = await self._get_pool()

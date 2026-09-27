@@ -15,7 +15,7 @@ class DataRepository(Protocol):
     async def get_many(self, ids: list[int]) -> list[Data]:
         ...
 
-    async def save(self, data: Data) -> None:
+    async def save(self, data: Data) -> int:
         ...
 
     async def delete(self, id_: int) -> None:

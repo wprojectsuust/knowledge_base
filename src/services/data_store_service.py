@@ -16,8 +16,8 @@ class DataStoreService:
     async def get_many(self, ids: list[int]) -> list[Data]:
         return await self._data_repository.get_many(ids)
 
-    async def save(self, data: Data) -> None:
-        await self._data_repository.save(data)
+    async def save(self, data: Data) -> int:
+        return await self._data_repository.save(data)
 
     async def remove(self, id_: int) -> None:
         await self._data_repository.delete(id_)

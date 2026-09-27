@@ -59,7 +59,7 @@ async def test_search_returns_matched_data(
     assert response.json() == [{"id": 1, "source": "example.com", "content": "Деканат находится в корпусе 2"}]
 
 
-def test_add_data_returns_ok_true(
+def test_add_data_returns_generated_id(
     make_fake_llm_service, fake_embedding_service, fake_vector_search_service, fake_data_store_service
 ) -> None:
     from src.use_cases.analyze_data import AnalyzeDataByLLMForNewData
@@ -69,10 +69,25 @@ def test_add_data_returns_ok_true(
 
     client = _client_with_overrides({get_new_data_use_case: lambda: use_case})
 
-    response = client.post("/data", json={"id": 1, "source": "example.com", "content": "Деканат находится в корпусе 2"})
+    response = client.post("/data", json={"source": "example.com", "content": "Деканат находится в корпусе 2"})
 
     assert response.status_code == 200
-    assert response.json() == {"ok": True}
+    assert response.json() == {"id": 1}
+
+
+def test_add_data_returns_422_when_llm_generates_no_questions(
+    make_fake_llm_service, fake_embedding_service, fake_vector_search_service, fake_data_store_service
+) -> None:
+    from src.use_cases.analyze_data import AnalyzeDataByLLMForNewData
+
+    analyze_data = AnalyzeDataByLLMForNewData(make_fake_llm_service("[]"))
+    use_case = NewData(analyze_data, fake_embedding_service, fake_vector_search_service, fake_data_store_service)
+
+    client = _client_with_overrides({get_new_data_use_case: lambda: use_case})
+
+    response = client.post("/data", json={"source": "example.com", "content": "Деканат находится в корпусе 2"})
+
+    assert response.status_code == 422
 
 
 def test_get_data_returns_404_when_missing(fake_data_store_service) -> None:

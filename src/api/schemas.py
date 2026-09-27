@@ -14,7 +14,6 @@ class SearchRequest(BaseModel):
 
 
 class DataIn(BaseModel):
-    id: int
     source: str
     content: str
 
@@ -23,6 +22,10 @@ class DataOut(BaseModel):
     id: int
     source: str
     content: str
+
+
+class DataCreated(BaseModel):
+    id: int
 
 
 class OkResponse(BaseModel):
