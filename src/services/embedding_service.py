@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Protocol
 
@@ -31,13 +32,16 @@ class RubertTiny2Provider:
 
 
 class EmbeddingService:
-    """Обёртка над EmbeddingProvider - позволяет быстро сменить модель эмбеддингов."""
+    """Обёртка над EmbeddingProvider - позволяет быстро сменить модель эмбеддингов.
+
+    encode() асинхронный: инференс sentence-transformers - CPU-bound синхронная работа,
+    без to_thread она блокировала бы event loop на время расчёта эмбеддинга."""
 
     def __init__(self, provider: EmbeddingProvider) -> None:
         self._provider = provider
 
-    def encode(self, text: str) -> list[float]:
-        return self._provider.encode(text)
+    async def encode(self, text: str) -> list[float]:
+        return await asyncio.to_thread(self._provider.encode, text)
 
     @classmethod
     def from_env(cls) -> "EmbeddingService":

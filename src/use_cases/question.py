@@ -37,7 +37,7 @@ class Question:
             return cached_answer
 
         logger.info("Question: получен вопрос=%s", question)
-        really_questions = self._get_really_questions.execute(question)
+        really_questions = await self._get_really_questions.execute(question)
 
         division = detect_division(question)
         division_slug = division.slug if division else None
@@ -46,6 +46,6 @@ class Question:
 
         data = await self._search_data.execute(really_questions, division=division_slug)
         logger.info("Question: найдено документов=%d (id=%s)", len(data), [item.id for item in data])
-        answer = self._analyze_data.execute(question, data)
+        answer = await self._analyze_data.execute(question, data)
         await self._question_cache_service.save(cache_key, answer)
         return answer

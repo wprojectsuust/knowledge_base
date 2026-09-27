@@ -11,7 +11,7 @@ class AnalyzeDataByLLMForUser:
     def __init__(self, llm_service: LLMService) -> None:
         self._llm_service = llm_service
 
-    def execute(self, prompt: str, data: list[Data]) -> str:
+    async def execute(self, prompt: str, data: list[Data]) -> str:
         logger.debug(
             "AnalyzeDataByLLMForUser: вопрос=%s, найдено документов=%d, id=%s",
             preview(prompt),
@@ -31,7 +31,7 @@ class AnalyzeDataByLLMForUser:
             f"Контекст:\n{context}\n\n"
             f"Вопрос: {prompt}"
         )
-        answer = self._llm_service.generate(full_prompt)
+        answer = await self._llm_service.generate(full_prompt)
         logger.debug("AnalyzeDataByLLMForUser: ответ=%s", preview(answer))
         return answer
 
@@ -43,7 +43,7 @@ class AnalyzeDataByLLMForNewData:
     def __init__(self, llm_service: LLMService) -> None:
         self._llm_service = llm_service
 
-    def execute(self, data: Data) -> list[str]:
+    async def execute(self, data: Data) -> list[str]:
         logger.debug("AnalyzeDataByLLMForNewData: источник=%s содержимое=%s", data.source, preview(data.content))
         prompt = (
             "К тебе поступает фрагмент базы знаний:\n"
@@ -54,7 +54,7 @@ class AnalyzeDataByLLMForNewData:
             "Верни ответ СТРОГО в формате JSON-массива строк, например:\n"
             '["где найти деканат", "как пройти в кабинет деканата"]'
         )
-        raw = self._llm_service.generate(prompt)
+        raw = await self._llm_service.generate(prompt)
         questions = parse_string_list(raw)
         logger.debug("AnalyzeDataByLLMForNewData: сгенерировано %d вопросов: %s", len(questions), questions)
         return questions

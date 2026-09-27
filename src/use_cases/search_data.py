@@ -35,7 +35,7 @@ class SearchDataByListOfStr:
         seen: set[int] = set()
         ids: list[int] = []
         for question in really_question:
-            embedding = self._embedding_service.encode(question)
+            embedding = await self._embedding_service.encode(question)
 
             if division:
                 prioritized = await self._vector_search_service.search(embedding, self._n_results, division=division)

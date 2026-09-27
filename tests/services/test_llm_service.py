@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 from src.services.llm_service import GeminiProvider, LLMService, parse_string_list
 
 
-def test_llm_service_delegates_to_provider() -> None:
+async def test_llm_service_delegates_to_provider() -> None:
     class FakeProvider:
         def __init__(self) -> None:
             self.last_prompt: str | None = None
@@ -15,7 +15,7 @@ def test_llm_service_delegates_to_provider() -> None:
     provider = FakeProvider()
     service = LLMService(provider)
 
-    result = service.generate("Где деканат?")
+    result = await service.generate("Где деканат?")
 
     assert result == "echo: Где деканат?"
     assert provider.last_prompt == "Где деканат?"

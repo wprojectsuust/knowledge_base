@@ -19,7 +19,7 @@ class FakeLLMService:
         self.last_prompt: str | None = None
         self.call_count = 0
 
-    def generate(self, prompt: str) -> str:
+    async def generate(self, prompt: str) -> str:
         self.last_prompt = prompt
         self.call_count += 1
         return self.response
@@ -42,7 +42,7 @@ class FakeEmbeddingService:
     def __init__(self) -> None:
         self.call_count = 0
 
-    def encode(self, text: str) -> list[float]:
+    async def encode(self, text: str) -> list[float]:
         self.call_count += 1
         return [float(len(text))]
 

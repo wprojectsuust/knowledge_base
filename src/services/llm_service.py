@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -65,13 +66,17 @@ class GeminiProvider:
 
 class LLMService:
     """Обёртка над LLMProvider - позволяет быстро сменить провайдера/модель,
-    не трогая юз-кейсы, которые от неё зависят."""
+    не трогая юз-кейсы, которые от неё зависят.
+
+    generate() асинхронный: GeminiProvider делает блокирующий сетевой вызов (openai/httpx
+    синхронные), а это самая долгая операция во всём пайплайне - без to_thread один
+    медленный запрос к LLM блокировал бы event loop и все остальные запросы к серверу."""
 
     def __init__(self, provider: LLMProvider) -> None:
         self._provider = provider
 
-    def generate(self, prompt: str) -> str:
-        return self._provider.generate(prompt)
+    async def generate(self, prompt: str) -> str:
+        return await asyncio.to_thread(self._provider.generate, prompt)
 
     @classmethod
     def from_env(cls) -> "LLMService":

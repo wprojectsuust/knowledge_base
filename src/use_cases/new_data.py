@@ -28,7 +28,7 @@ class NewData:
 
     async def execute(self, data: Data) -> int | None:
         logger.info("NewData: начинаю обработку, источник=%s", data.source)
-        questions = self._analyze_data.execute(data)
+        questions = await self._analyze_data.execute(data)
         if not questions:
             logger.warning("NewData: LLM не сгенерировал вопросов для индексации, данные НЕ сохранены")
             return None
@@ -36,7 +36,7 @@ class NewData:
         new_id = await self._data_store_service.save(data)
         logger.info("NewData: сохранено в PostgreSQL, id=%d, division=%s", new_id, data.division)
         for question in questions:
-            embedding = self._embedding_service.encode(question)
+            embedding = await self._embedding_service.encode(question)
             await self._vector_search_service.index(new_id, embedding, division=data.division)
         logger.info("NewData: проиндексировано %d векторов для id=%d", len(questions), new_id)
         return new_id
