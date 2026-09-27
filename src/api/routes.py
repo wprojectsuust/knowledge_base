@@ -1,6 +1,8 @@
 import logging
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import HTMLResponse
 
 from src.api.dependencies import (
     get_new_data_use_case,
@@ -20,6 +22,13 @@ from src.use_cases.search_data import SearchDataById, SearchDataByListOfStr
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+_UPLOAD_PAGE_HTML = (Path(__file__).resolve().parent / "static" / "index.html").read_text(encoding="utf-8")
+
+
+@router.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def upload_page() -> HTMLResponse:
+    return HTMLResponse(content=_UPLOAD_PAGE_HTML)
 
 
 @router.post("/question", response_model=QuestionResponse)

@@ -25,6 +25,16 @@ def _client_with_overrides(overrides: dict) -> TestClient:
     return TestClient(app)
 
 
+def test_upload_page_serves_html() -> None:
+    client = _client_with_overrides({})
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert "<form" in response.text
+
+
 async def test_ask_question_returns_answer_from_use_case(
     make_fake_llm_service,
     fake_embedding_service,

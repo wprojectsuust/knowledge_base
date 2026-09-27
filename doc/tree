@@ -9,10 +9,17 @@
 │   │   ├── 000-clean-architecture-tdd-two-databases.md
 │   │   └── 001-relational-db-for-documents.md
 │   └── tree
+├── example
+│   └── raspisanie
+│       ├── extract_groups.py
+│       ├── groups.json
+│       └── isu_api.py
 ├── scripts
 │   └── tree.py
 ├── src
 │   ├── api
+│   │   ├── static
+│   │   │   └── index.html
 │   │   ├── __init__.py
 │   │   ├── app.py
 │   │   ├── dependencies.py
@@ -89,11 +96,13 @@
 
 Строки кода
 ============================================================
-Всего файлов: 65
-Всего строк: 3072
+Всего файлов: 69
+Всего строк: 5860
 
 По расширениям:
-  .py                  2541
+  .py                  2725
+  .json                2388
+  .html                216
   (без расширения)     214
   .md                  172
   .js                  61
