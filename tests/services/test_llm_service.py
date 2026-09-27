@@ -1,5 +1,8 @@
+import asyncio
+import time
 from unittest.mock import MagicMock
 
+import src.config as config
 from src.services.llm_service import GeminiProvider, LLMService, parse_string_list
 
 
@@ -19,6 +22,28 @@ async def test_llm_service_delegates_to_provider() -> None:
 
     assert result == "echo: Где деканат?"
     assert provider.last_prompt == "Где деканат?"
+
+
+async def test_llm_service_limits_concurrent_calls(monkeypatch) -> None:
+    monkeypatch.setattr(config, "LLM_MAX_CONCURRENCY", 2)
+
+    active = 0
+    max_active = 0
+
+    class SlowProvider:
+        def generate(self, prompt: str) -> str:
+            nonlocal active, max_active
+            active += 1
+            max_active = max(max_active, active)
+            time.sleep(0.05)
+            active -= 1
+            return "ok"
+
+    service = LLMService(SlowProvider())
+
+    await asyncio.gather(*(service.generate("x") for _ in range(6)))
+
+    assert max_active <= 2
 
 
 def test_gemini_provider_generate_returns_stripped_content(fake_openai: MagicMock) -> None:

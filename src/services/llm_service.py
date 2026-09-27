@@ -6,6 +6,7 @@ import logging
 import os
 from typing import Protocol
 
+from src import config
 from src.logging_utils import preview
 
 logger = logging.getLogger(__name__)
@@ -70,13 +71,19 @@ class LLMService:
 
     generate() асинхронный: GeminiProvider делает блокирующий сетевой вызов (openai/httpx
     синхронные), а это самая долгая операция во всём пайплайне - без to_thread один
-    медленный запрос к LLM блокировал бы event loop и все остальные запросы к серверу."""
+    медленный запрос к LLM блокировал бы event loop и все остальные запросы к серверу.
+
+    Плюс глобальный (на весь процесс) семафор ограничивает число одновременных запросов
+    к LLM сверху (см. config.LLM_MAX_CONCURRENCY) - защита от перегрузки внешнего API
+    и от слишком большого числа параллельных сетевых вызовов с одного инстанса."""
 
     def __init__(self, provider: LLMProvider) -> None:
         self._provider = provider
+        self._semaphore = asyncio.Semaphore(config.LLM_MAX_CONCURRENCY)
 
     async def generate(self, prompt: str) -> str:
-        return await asyncio.to_thread(self._provider.generate, prompt)
+        async with self._semaphore:
+            return await asyncio.to_thread(self._provider.generate, prompt)
 
     @classmethod
     def from_env(cls) -> "LLMService":

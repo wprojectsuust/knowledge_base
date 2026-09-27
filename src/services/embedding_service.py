@@ -4,6 +4,7 @@ import asyncio
 import logging
 from typing import Protocol
 
+from src import config
 from src.logging_utils import preview
 
 logger = logging.getLogger(__name__)
@@ -35,13 +36,19 @@ class EmbeddingService:
     """Обёртка над EmbeddingProvider - позволяет быстро сменить модель эмбеддингов.
 
     encode() асинхронный: инференс sentence-transformers - CPU-bound синхронная работа,
-    без to_thread она блокировала бы event loop на время расчёта эмбеддинга."""
+    без to_thread она блокировала бы event loop на время расчёта эмбеддинга.
+
+    Плюс глобальный (на весь процесс) семафор ограничивает число одновременных запросов
+    к модели сверху (см. config.EMBEDDING_MAX_CONCURRENCY) - защита от перегрузки CPU
+    при большом числе параллельных запросов."""
 
     def __init__(self, provider: EmbeddingProvider) -> None:
         self._provider = provider
+        self._semaphore = asyncio.Semaphore(config.EMBEDDING_MAX_CONCURRENCY)
 
     async def encode(self, text: str) -> list[float]:
-        return await asyncio.to_thread(self._provider.encode, text)
+        async with self._semaphore:
+            return await asyncio.to_thread(self._provider.encode, text)
 
     @classmethod
     def from_env(cls) -> "EmbeddingService":
