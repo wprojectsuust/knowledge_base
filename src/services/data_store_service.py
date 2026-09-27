@@ -10,6 +10,9 @@ class DataStoreService:
     def __init__(self, data_repository: DataRepository) -> None:
         self._data_repository = data_repository
 
+    async def connect(self) -> None:
+        await self._data_repository.connect()
+
     async def get(self, id_: int) -> Data | None:
         return await self._data_repository.get(id_)
 

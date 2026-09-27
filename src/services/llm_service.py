@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from typing import Protocol
+
+from src.logging_utils import preview
+
+logger = logging.getLogger(__name__)
 
 
 def parse_string_list(raw: str) -> list[str]:
@@ -44,14 +49,18 @@ class GeminiProvider:
             http_client=http_client,
         )
         self._model = model
+        logger.info("GeminiProvider: инициализирован, model=%s, прокси=%s", model, "да" if proxy_url else "нет")
 
     def generate(self, prompt: str) -> str:
+        logger.debug("Gemini запрос: model=%s prompt=%s", self._model, preview(prompt))
         response = self._client.chat.completions.create(
             model=self._model,
             temperature=0.2,
             messages=[{"role": "user", "content": prompt}],
         )
-        return response.choices[0].message.content.strip()
+        answer = response.choices[0].message.content.strip()
+        logger.debug("Gemini ответ: %s", preview(answer))
+        return answer
 
 
 class LLMService:

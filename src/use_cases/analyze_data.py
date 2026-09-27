@@ -1,5 +1,10 @@
+import logging
+
 from src.domain.data import Data
+from src.logging_utils import preview
 from src.services.llm_service import LLMService, parse_string_list
+
+logger = logging.getLogger(__name__)
 
 
 class AnalyzeDataByLLMForUser:
@@ -7,15 +12,25 @@ class AnalyzeDataByLLMForUser:
         self._llm_service = llm_service
 
     def execute(self, prompt: str, data: list[Data]) -> str:
+        logger.debug(
+            "AnalyzeDataByLLMForUser: вопрос=%s, найдено документов=%d, id=%s",
+            preview(prompt),
+            len(data),
+            [item.id for item in data],
+        )
         context = "\n\n".join(f"[ID: {item.id} | Источник: {item.source}]\n{item.content}" for item in data)
         full_prompt = (
             "Ты - официальный консультант Уфимского университета науки и технологий (УУНиТ).\n"
             "Ответь на вопрос пользователя вежливо, точно и структурированно, основываясь "
-            "на фактах и контактах из контекста базы знаний ниже.\n\n"
+            "на фактах и контактах из контекста базы знаний ниже.\n"
+            "Обязательно укажи источник (поле 'Источник' у соответствующего фрагмента контекста) "
+            "для каждого факта, который используешь в ответе.\n\n"
             f"Контекст:\n{context}\n\n"
             f"Вопрос: {prompt}"
         )
-        return self._llm_service.generate(full_prompt)
+        answer = self._llm_service.generate(full_prompt)
+        logger.debug("AnalyzeDataByLLMForUser: ответ=%s", preview(answer))
+        return answer
 
 
 class AnalyzeDataByLLMForNewData:
@@ -26,6 +41,7 @@ class AnalyzeDataByLLMForNewData:
         self._llm_service = llm_service
 
     def execute(self, data: Data) -> list[str]:
+        logger.debug("AnalyzeDataByLLMForNewData: источник=%s содержимое=%s", data.source, preview(data.content))
         prompt = (
             "К тебе поступает фрагмент базы знаний:\n"
             f"Источник: {data.source}\n"
@@ -36,4 +52,6 @@ class AnalyzeDataByLLMForNewData:
             '["где найти деканат", "как пройти в кабинет деканата"]'
         )
         raw = self._llm_service.generate(prompt)
-        return parse_string_list(raw)
+        questions = parse_string_list(raw)
+        logger.debug("AnalyzeDataByLLMForNewData: сгенерировано %d вопросов: %s", len(questions), questions)
+        return questions

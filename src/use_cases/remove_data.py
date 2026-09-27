@@ -1,5 +1,9 @@
+import logging
+
 from src.services.data_store_service import DataStoreService
 from src.services.vector_search_service import VectorSearchService
+
+logger = logging.getLogger(__name__)
 
 
 class RemoveDataById:
@@ -8,6 +12,7 @@ class RemoveDataById:
         self._vector_search_service = vector_search_service
 
     async def execute(self, id_: int) -> bool:
+        logger.info("RemoveDataById: удаляю id=%s (PostgreSQL + Chroma)", id_)
         await self._data_store_service.remove(id_)
         await self._vector_search_service.remove(id_)
         return True

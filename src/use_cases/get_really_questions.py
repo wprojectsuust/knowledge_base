@@ -1,4 +1,9 @@
+import logging
+
+from src.logging_utils import preview
 from src.services.llm_service import LLMService, parse_string_list
+
+logger = logging.getLogger(__name__)
 
 
 class GetReallyQuestions:
@@ -9,6 +14,7 @@ class GetReallyQuestions:
         self._llm_service = llm_service
 
     def execute(self, question: str) -> list[str]:
+        logger.debug("GetReallyQuestions: вход=%s", preview(question))
         prompt = (
             "Пользователь написал сообщение консультанту УУНиТ. Выдели из него реальные "
             "поисковые вопросы, по которым можно найти ответ в базе знаний вуза.\n"
@@ -17,4 +23,6 @@ class GetReallyQuestions:
             '["где находится деканат", "как записаться на пересдачу"]'
         )
         raw = self._llm_service.generate(prompt)
-        return parse_string_list(raw)
+        really_questions = parse_string_list(raw)
+        logger.debug("GetReallyQuestions: выделено %d вопросов: %s", len(really_questions), really_questions)
+        return really_questions

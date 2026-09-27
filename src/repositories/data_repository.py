@@ -9,6 +9,9 @@ class DataRepository(Protocol):
     """Абстракция над реляционным хранилищем документов (PostgreSQL). Асинхронный,
     так как реализация поверх asyncpg."""
 
+    async def connect(self) -> None:
+        ...
+
     async def get(self, id_: int) -> Data | None:
         ...
 
