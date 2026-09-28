@@ -30,6 +30,11 @@ def parse_string_list(raw: str) -> list[str]:
     return []
 
 
+class LLMUnavailableError(Exception):
+    """LLM не ответила даже после повторов (перегрузка 503, лимит 429, сеть, таймаут).
+    API превращает её в 503 с понятным текстом - см. api/app.py."""
+
+
 class LLMProvider(Protocol):
     """Абстракция над конкретным API-поставщиком LLM."""
 
@@ -49,17 +54,24 @@ class GeminiProvider:
             api_key=api_key,
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
             http_client=http_client,
+            # Gemini периодически отвечает 503 "high demand" - пики короткие, поэтому повторяем
+            # чаще, чем по умолчанию (2), с экспоненциальной паузой внутри клиента openai
+            max_retries=config.LLM_MAX_RETRIES,
         )
         self._model = model
         logger.info("GeminiProvider: инициализирован, model=%s, прокси=%s", model, "да" if proxy_url else "нет")
 
     def generate(self, prompt: str) -> str:
         logger.debug("Gemini запрос: model=%s prompt=%s", self._model, preview(prompt))
-        response = self._client.chat.completions.create(
-            model=self._model,
-            temperature=0.2,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        try:
+            response = self._client.chat.completions.create(
+                model=self._model,
+                temperature=0.2,
+                messages=[{"role": "user", "content": prompt}],
+            )
+        except Exception as error:  # любая ошибка внешнего API для нас значит «LLM недоступна»
+            logger.warning("Gemini недоступна после повторов: %s", error)
+            raise LLMUnavailableError(str(error)) from error
         answer = response.choices[0].message.content.strip()
         logger.debug("Gemini ответ: %s", preview(answer))
         return answer

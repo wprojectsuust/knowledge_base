@@ -80,3 +80,16 @@ def test_parse_string_list_returns_empty_for_blank_input() -> None:
 
 def test_parse_string_list_returns_empty_for_json_object_without_list() -> None:
     assert parse_string_list('{"note": "нет вопросов"}') == []
+
+
+def test_gemini_provider_wraps_api_failure_into_llm_unavailable(fake_openai: MagicMock) -> None:
+    import pytest
+
+    from src.services.llm_service import LLMUnavailableError
+
+    fake_openai.side_effect = RuntimeError("Error code: 503 - model is currently experiencing high demand")
+
+    provider = GeminiProvider(api_key="key", model="test-model")
+
+    with pytest.raises(LLMUnavailableError):
+        provider.generate("вопрос")

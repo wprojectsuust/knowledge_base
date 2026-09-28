@@ -2,7 +2,8 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
@@ -15,6 +16,7 @@ from src.api.dependencies import (
     get_vector_search_service,
 )
 from src.api.routes import router
+from src.services.llm_service import LLMUnavailableError
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +72,16 @@ def create_app() -> FastAPI:
     )
     # /campus отдаёт раскладку всех кабинетов (~сотни КБ JSON) - сжимаем
     app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+    # Обработчик срабатывает внутри CORS-мидлвари: ответ уходит с CORS-заголовками, и фронт
+    # показывает понятное сообщение, а не «заблокировано политикой CORS» на голом 500.
+    @app.exception_handler(LLMUnavailableError)
+    async def llm_unavailable(_: Request, error: LLMUnavailableError) -> JSONResponse:
+        logger.warning("LLM недоступна, отвечаю 503: %s", error)
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "ИИ-модель сейчас перегружена, попробуйте ещё раз через минуту."},
+        )
 
     app.include_router(router)
     return app

@@ -294,3 +294,22 @@ def test_route_endpoint_returns_404_for_unknown_place() -> None:
     response = client.post("/route", json={"source": "kpp", "target": "куда-то"})
 
     assert response.status_code == 404
+
+
+def test_ask_question_returns_503_with_readable_message_when_llm_is_overloaded() -> None:
+    from src.services.llm_service import LLMUnavailableError
+
+    class _OverloadedQuestion:
+        async def execute(self, question, facts=None):
+            raise LLMUnavailableError("503 high demand")
+
+    client = _client_with_overrides({get_question_use_case: lambda: _OverloadedQuestion()})
+
+    response = client.post(
+        "/question", json={"question": "где деканат"}, headers={"Origin": "http://localhost:3000"}
+    )
+
+    assert response.status_code == 503
+    assert "перегружен" in response.json()["detail"]
+    # CORS-заголовок на месте - браузер покажет сообщение, а не «ошибку CORS»
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
