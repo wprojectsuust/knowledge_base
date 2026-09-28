@@ -936,7 +936,49 @@ input {
   .venue-backdrop {
     transition: none;
   }
-  .campus-pin {
+  .campus-place {
+  display: inline-block;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  white-space: nowrap;
+  color: #04122e;
+  background: rgba(126, 240, 255, 0.9);
+  pointer-events: none;
+}
+
+.campus-place.cafe {
+  background: rgba(255, 209, 102, 0.92);
+}
+
+.campus-main-entrance {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 999px;
+  white-space: nowrap;
+  color: #2a1c00;
+  background: #ffd166;
+  box-shadow: 0 0 18px rgba(255, 209, 102, 0.7);
+  pointer-events: none;
+}
+
+.campus-street {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  color: rgba(179, 189, 220, 0.75);
+  pointer-events: none;
+}
+
+.campus-street.vertical {
+  transform: rotate(-90deg);
+}
+
+.campus-pin {
     animation: none;
   }
 }
@@ -1039,6 +1081,28 @@ input {
   border-radius: 14px;
   overflow: hidden;
   border: 1px solid var(--border-strong);
+}
+
+.map-search {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.map-search input {
+  width: 150px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: rgba(14, 27, 74, 0.6);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+}
+
+.map-search input:focus {
+  border-color: rgba(160, 185, 255, 0.9);
 }
 
 .map-hint {

@@ -5,7 +5,17 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { CameraControls, Edges, Grid, Html } from "@react-three/drei";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import * as THREE from "three";
-import { CAMPUSES, DEFAULT_CAMPUS_ID, FLOOR_HEIGHT, type Building, type Campus } from "@/lib/campus-data";
+import {
+  CAMPUSES,
+  DEFAULT_CAMPUS_ID,
+  FLOOR_HEIGHT,
+  rectToMeters,
+  toMeters,
+  type Building,
+  type Campus,
+  type Direction,
+} from "@/lib/campus-data";
+import { buildingRooms, findRoom, type RoomCell } from "@/lib/campus-rooms";
 
 export type CampusTarget = {
   building: string;
@@ -16,228 +26,225 @@ export type CampusTarget = {
 type CampusSceneProps = {
   campusId?: string;
   target?: CampusTarget | null;
-  /** true - камера летит к цели и раскрывает этажи; false - медленный облёт всего кампуса */
+  /** true - камера летит к цели и раскрывает этаж; false - медленный облёт всего кампуса */
   focused: boolean;
   /** можно ли крутить сцену мышью (в мини-окне в углу - нет) */
   interactive?: boolean;
   onSelectBuilding?: (id: string) => void;
 };
 
-const EXPLODE_GAP = 7; // насколько раздвигаются этажи при раскрытии корпуса
-const SLAB_RATIO = 0.82; // толщина плиты этажа от высоты этажа - между плитами видны щели
+const SLAB = FLOOR_HEIGHT * 0.82; // толщина плиты этажа - между плитами видны щели
+const LIFT = 26; // на сколько поднимаются этажи над нужным, чтобы открыть его сверху
+const EXPLODE_GAP = 5; // раздвижка этажей, когда выбран корпус без этажа
 
-const COLORS = {
-  body: new THREE.Color("#2f4dff"),
-  edge: "#6f8bff",
-  edgeDim: "#1f2d78",
-  edgeTarget: "#c9d6ff",
-  room: "#7ef0ff",
+const BODY = new THREE.Color("#2f4dff");
+const EDGE = { normal: "#6f8bff", dim: "#1c2a70", bright: "#c9d6ff" };
+
+type Box = { x: number; z: number; w: number; d: number };
+
+function boundsOf(boxes: Box[]) {
+  const minX = Math.min(...boxes.map((b) => b.x - b.w / 2));
+  const maxX = Math.max(...boxes.map((b) => b.x + b.w / 2));
+  const minZ = Math.min(...boxes.map((b) => b.z - b.d / 2));
+  const maxZ = Math.max(...boxes.map((b) => b.z + b.d / 2));
+  return { x: (minX + maxX) / 2, z: (minZ + maxZ) / 2, w: maxX - minX, d: maxZ - minZ };
+}
+
+/** Плавно ведёт число к цели независимо от FPS. */
+function approach(current: number, target: number, delta: number, speed = 4) {
+  return current + (target - current) * (1 - Math.exp(-delta * speed));
+}
+
+type FloorMode = "normal" | "dimmed" | "target" | "below" | "above";
+
+const FLOOR_LOOK: Record<FloorMode, { opacity: number; edge: string }> = {
+  normal: { opacity: 0.3, edge: EDGE.normal },
+  dimmed: { opacity: 0.05, edge: EDGE.dim },
+  target: { opacity: 0.16, edge: EDGE.bright },
+  below: { opacity: 0.12, edge: EDGE.normal },
+  above: { opacity: 0.025, edge: EDGE.dim },
 };
 
-/** Центр кампуса - чтобы сцена крутилась вокруг середины, а не вокруг произвольной точки. */
-function campusCenter(campus: Campus) {
-  const xs = campus.buildings.flatMap((b) => [b.x - b.w / 2, b.x + b.w / 2]);
-  const zs = campus.buildings.flatMap((b) => [b.z - b.d / 2, b.z + b.d / 2]);
-  return new THREE.Vector3((Math.min(...xs) + Math.max(...xs)) / 2, 0, (Math.min(...zs) + Math.max(...zs)) / 2);
-}
-
-function floorBaseY(floorIndex: number, exploded: boolean) {
-  return floorIndex * FLOOR_HEIGHT + (exploded ? floorIndex * EXPLODE_GAP : 0);
-}
-
-type FloorProps = {
-  building: Building;
+function Floor({
+  wings,
+  index,
+  mode,
+  lift,
+  onClick,
+  children,
+}: {
+  wings: Box[];
   index: number;
-  exploded: boolean;
-  opacity: number;
-  edgeColor: string;
-  slideOut: boolean;
+  mode: FloorMode;
+  lift: number;
   onClick?: () => void;
-};
-
-function FloorSlab({ building, index, exploded, opacity, edgeColor, slideOut, onClick }: FloorProps) {
+  children?: React.ReactNode;
+}) {
   const group = useRef<THREE.Group>(null);
-  const material = useRef<THREE.MeshStandardMaterial>(null);
-  const slabHeight = FLOOR_HEIGHT * SLAB_RATIO;
+  // один материал на весь этаж - меньше объектов и одна анимация прозрачности
+  const material = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: BODY,
+        emissive: BODY,
+        emissiveIntensity: 0.35,
+        transparent: true,
+        opacity: FLOOR_LOOK.normal.opacity,
+        depthWrite: false,
+      }),
+    [],
+  );
+  useEffect(() => () => material.dispose(), [material]);
+
+  const look = FLOOR_LOOK[mode];
+  const baseY = index * FLOOR_HEIGHT;
 
   useFrame((_, delta) => {
-    if (!group.current || !material.current) return;
-    const k = 1 - Math.exp(-delta * 4); // плавное приближение к цели, не зависящее от FPS
-    const targetY = floorBaseY(index, exploded) + slabHeight / 2;
-    const targetZ = slideOut ? building.d * 0.45 : 0;
-    group.current.position.y += (targetY - group.current.position.y) * k;
-    group.current.position.z += (targetZ - group.current.position.z) * k;
-    material.current.opacity += (opacity - material.current.opacity) * k;
+    if (!group.current) return;
+    group.current.position.y = approach(group.current.position.y, baseY + lift, delta);
+    material.opacity = approach(material.opacity, look.opacity, delta);
   });
 
   return (
-    <group ref={group} position={[0, floorBaseY(index, false) + slabHeight / 2, 0]}>
-      <mesh
-        onClick={(event) => {
-          if (!onClick) return;
-          event.stopPropagation();
-          onClick();
-        }}
-      >
-        <boxGeometry args={[building.w, slabHeight, building.d]} />
-        <meshStandardMaterial
-          ref={material}
-          color={COLORS.body}
-          emissive={COLORS.body}
-          emissiveIntensity={0.35}
-          transparent
-          opacity={opacity}
-          depthWrite={false}
-        />
-        <Edges color={edgeColor} lineWidth={1} />
-      </mesh>
+    <group ref={group} position={[0, baseY, 0]}>
+      {wings.map((wing, i) => (
+        <mesh
+          key={i}
+          position={[wing.x, SLAB / 2, wing.z]}
+          material={material}
+          onClick={
+            onClick
+              ? (event) => {
+                  event.stopPropagation();
+                  onClick();
+                }
+              : undefined
+          }
+        >
+          <boxGeometry args={[wing.w, SLAB, wing.d]} />
+          <Edges color={look.edge} />
+        </mesh>
+      ))}
+      {children}
     </group>
   );
 }
 
-type BuildingProps = {
-  building: Building;
-  state: "normal" | "dimmed" | "target";
-  exploded: boolean;
-  targetFloor: number | null;
-  targetRoom: string | null;
-  onSelect?: (id: string) => void;
-};
-
-function BuildingModel({ building, state, exploded, targetFloor, targetRoom, onSelect }: BuildingProps) {
-  const isTarget = state === "target";
-  const floorIndex = targetFloor ? Math.min(targetFloor, building.floors) - 1 : null;
-  const room = building.rooms?.find((item) => item.number === targetRoom) ?? null;
-  const topY = floorBaseY(building.floors, false);
-
-  // куда ставить пин: в кабинет, если он размечен, иначе в центр нужного этажа (или над корпусом)
-  const pinFloorIndex = room ? room.floor - 1 : floorIndex;
-  const pinY = pinFloorIndex !== null ? floorBaseY(pinFloorIndex, exploded) + FLOOR_HEIGHT : topY + 2;
-  const pinX = room ? (room.u - 0.5) * building.w : 0;
-  const pinZ = (room ? (room.v - 0.5) * building.d : 0) + (isTarget && exploded && pinFloorIndex !== null ? building.d * 0.45 : 0);
+/** Кабинеты этажа: контуры одной геометрией (один draw call), нужный кабинет - светящийся блок. */
+function RoomsLayer({ cells, highlight }: { cells: RoomCell[]; highlight: RoomCell | null }) {
+  const geometry = useMemo(() => {
+    const points: number[] = [];
+    const y = SLAB + 0.05;
+    for (const c of cells) {
+      const x1 = c.x - c.w / 2;
+      const x2 = c.x + c.w / 2;
+      const z1 = c.z - c.d / 2;
+      const z2 = c.z + c.d / 2;
+      points.push(x1, y, z1, x2, y, z1, x2, y, z1, x2, y, z2, x2, y, z2, x1, y, z2, x1, y, z2, x1, y, z1);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(points, 3));
+    return g;
+  }, [cells]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
 
   return (
-    <group position={[building.x, 0, building.z]} rotation={[0, THREE.MathUtils.degToRad(building.rotation ?? 0), 0]}>
-      {Array.from({ length: building.floors }, (_, index) => {
-        const isTargetFloor = isTarget && floorIndex === index;
-        let opacity = 0.32;
-        let edgeColor = COLORS.edge;
-        if (state === "dimmed") {
-          opacity = 0.06;
-          edgeColor = COLORS.edgeDim;
-        } else if (isTarget && floorIndex !== null) {
-          opacity = isTargetFloor ? 0.6 : 0.1;
-          edgeColor = isTargetFloor ? COLORS.edgeTarget : COLORS.edge;
-        } else if (isTarget) {
-          opacity = 0.45;
-          edgeColor = COLORS.edgeTarget;
-        }
-        return (
-          <FloorSlab
-            key={index}
-            building={building}
-            index={index}
-            exploded={isTarget && exploded}
-            opacity={opacity}
-            edgeColor={edgeColor}
-            slideOut={isTargetFloor && exploded}
-            onClick={onSelect ? () => onSelect(building.id) : undefined}
-          />
-        );
-      })}
-
-      {isTarget && room && exploded && (
-        <mesh position={[pinX, pinY - FLOOR_HEIGHT * 0.55, pinZ]}>
-          <boxGeometry args={[building.w * 0.12, FLOOR_HEIGHT * 0.5, building.d * 0.3]} />
-          <meshBasicMaterial color={COLORS.room} transparent opacity={0.85} />
+    <group>
+      <lineSegments geometry={geometry}>
+        <lineBasicMaterial color="#8fa6ff" transparent opacity={0.55} />
+      </lineSegments>
+      {highlight && (
+        <mesh position={[highlight.x, SLAB + 1.4, highlight.z]}>
+          <boxGeometry args={[highlight.w, 2.8, highlight.d]} />
+          <meshBasicMaterial color="#7ef0ff" transparent opacity={0.8} />
         </mesh>
       )}
-
-      {state !== "dimmed" && !isTarget && (
-        <Html position={[0, topY + 3, 0]} center zIndexRange={[10, 0]} className="campus-label-wrap">
-          <span className="campus-label">{building.id}</span>
-        </Html>
-      )}
-
-      {isTarget && (
-        <Html position={[pinX, pinY + 1, pinZ]} center zIndexRange={[10, 0]} className="campus-label-wrap">
-          <div className={`campus-pin${exploded ? " dropped" : ""}`}>
-            <span className="campus-pin-title">
-              {targetRoom ? `${building.id}-${targetRoom}` : building.name}
+      {cells
+        .filter((cell) => cell.label && cell !== highlight)
+        .map((cell) => (
+          <Html key={cell.number} position={[cell.x, SLAB + 2, cell.z]} center zIndexRange={[10, 0]}>
+            <span className="campus-place">
+              {cell.label} · {cell.number}
             </span>
-            {floorIndex !== null && <span className="campus-pin-sub">{floorIndex + 1} этаж</span>}
-          </div>
-        </Html>
-      )}
+          </Html>
+        ))}
     </group>
   );
 }
 
-function BridgeModel({ from, to, floor, dimmed }: { from: Building; to: Building; floor: number; dimmed: boolean }) {
-  const material = useRef<THREE.MeshStandardMaterial>(null);
-  const start = new THREE.Vector3(from.x, 0, from.z);
-  const end = new THREE.Vector3(to.x, 0, to.z);
-  const length = start.distanceTo(end);
-  const middle = start.clone().add(end).multiplyScalar(0.5);
-  const angle = Math.atan2(end.x - start.x, end.z - start.z);
-  const y = (floor - 1) * FLOOR_HEIGHT + FLOOR_HEIGHT * 0.45;
+const ARROW_ROTATION: Record<Direction, number> = {
+  // стрелка по умолчанию (конус, повёрнутый на бок) смотрит в -z = вверх по схеме
+  up: 0,
+  left: Math.PI / 2,
+  down: Math.PI,
+  right: -Math.PI / 2,
+};
 
-  useFrame((_, delta) => {
-    if (!material.current) return;
-    const k = 1 - Math.exp(-delta * 4);
-    material.current.opacity += ((dimmed ? 0.04 : 0.35) - material.current.opacity) * k;
+function EntranceMarker({ x, z, dir, main }: { x: number; z: number; dir: Direction; main?: boolean }) {
+  const ring = useRef<THREE.Mesh>(null);
+  useFrame(({ clock }) => {
+    if (!ring.current) return;
+    const t = (clock.elapsedTime % 2) / 2;
+    ring.current.scale.setScalar(1 + t * 2.5);
+    (ring.current.material as THREE.MeshBasicMaterial).opacity = 0.7 * (1 - t);
   });
 
+  const size = main ? 1.6 : 1;
   return (
-    <mesh position={[middle.x, y, middle.z]} rotation={[0, angle, 0]}>
-      <boxGeometry args={[3, 2.4, length]} />
-      <meshStandardMaterial
-        ref={material}
-        color="#38c6ff"
-        emissive="#38c6ff"
-        emissiveIntensity={0.6}
-        transparent
-        opacity={0.35}
-        depthWrite={false}
-      />
-    </mesh>
+    <group position={[x, 0.3, z]} rotation={[0, ARROW_ROTATION[dir], 0]}>
+      {/* стрелка стоит перед входом и указывает в здание */}
+      <mesh position={[0, 0, 5 * size]} rotation={[-Math.PI / 2, 0, 0]}>
+        <coneGeometry args={[2 * size, 5 * size, 3]} />
+        <meshBasicMaterial color={main ? "#ffd166" : "#38c6ff"} />
+      </mesh>
+      {main && (
+        <>
+          <mesh ref={ring} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[2.2, 3, 32]} />
+            <meshBasicMaterial color="#ffd166" transparent opacity={0.7} side={THREE.DoubleSide} />
+          </mesh>
+          <Html position={[0, 8, 0]} center zIndexRange={[10, 0]}>
+            <span className="campus-main-entrance">Главный вход</span>
+          </Html>
+        </>
+      )}
+    </group>
   );
 }
 
 function CameraRig({
   controls,
-  campus,
-  offset,
-  target,
-  focused,
+  overview,
+  focus,
 }: {
   controls: React.RefObject<CameraControls | null>;
-  campus: Campus;
-  offset: THREE.Vector3;
-  target: Building | null;
-  focused: boolean;
+  overview: { w: number; d: number };
+  focus: { x: number; z: number; w: number; d: number; y: number } | null;
 }) {
   useEffect(() => {
     const cc = controls.current;
     if (!cc) return;
-    if (focused && target) {
-      // встаём перед корпусом (со стороны его локальной +z, куда выезжает этаж) и чуть сверху
-      const angle = THREE.MathUtils.degToRad(target.rotation ?? 0);
-      const center = new THREE.Vector3(target.x, 0, target.z).sub(offset);
-      const lookY = (target.floors * (FLOOR_HEIGHT + EXPLODE_GAP)) / 2;
-      const distance = Math.max(target.w, target.d) * 1.25 + 60;
-      const dir = new THREE.Vector3(Math.sin(angle) * 0.55, 0, Math.cos(angle)).normalize();
-      const position = center.clone().addScaledVector(dir, distance).setY(lookY + distance * 0.45);
-      void cc.setLookAt(position.x, position.y, position.z, center.x, lookY, center.z, true);
+    if (focus) {
+      // сверху-спереди (с юга по схеме), чтобы заглянуть в открытый этаж
+      const distance = Math.max(focus.w, focus.d) * 0.9 + 45;
+      void cc.setLookAt(
+        focus.x + distance * 0.25,
+        focus.y + distance * 0.95,
+        focus.z + distance * 0.8,
+        focus.x,
+        focus.y,
+        focus.z,
+        true,
+      );
     } else {
-      const size = Math.max(...campus.buildings.map((b) => Math.hypot(b.x - offset.x, b.z - offset.z))) + 60;
-      void cc.setLookAt(size * 0.9, size * 0.85, size * 1.3, 0, 0, 0, true);
+      const size = Math.max(overview.w, overview.d);
+      void cc.setLookAt(size * 0.35, size * 0.55, size * 0.75, 0, 0, 0, true);
     }
-  }, [controls, campus, offset, target, focused]);
+  }, [controls, overview, focus]);
 
   useFrame((_, delta) => {
     // медленный облёт, пока ни на что не смотрим
-    if (!focused) controls.current?.rotate(delta * 0.06, 0, true);
+    if (!focus) controls.current?.rotate(delta * 0.05, 0, true);
   });
 
   return null;
@@ -250,40 +257,54 @@ export default function CampusScene({
   interactive = true,
   onSelectBuilding,
 }: CampusSceneProps) {
-  const targetInfo = useMemo(() => {
-    if (!target) return null;
-    for (const campus of CAMPUSES) {
-      const building = campus.buildings.find((item) => item.id === target.building);
-      if (building) return { campus, building };
-    }
-    return null;
-  }, [target]);
+  const campus: Campus = useMemo(() => {
+    const byTarget = target
+      ? CAMPUSES.find((c) => c.buildings.some((b) => b.id === target.building))
+      : undefined;
+    return (
+      CAMPUSES.find((c) => c.id === (campusId ?? byTarget?.id)) ?? CAMPUSES.find((c) => c.id === DEFAULT_CAMPUS_ID)!
+    );
+  }, [campusId, target]);
 
-  const campus =
-    CAMPUSES.find((item) => item.id === (campusId ?? targetInfo?.campus.id)) ??
-    CAMPUSES.find((item) => item.id === DEFAULT_CAMPUS_ID)!;
-  const offset = useMemo(() => campusCenter(campus), [campus]);
-  const targetBuilding = targetInfo && targetInfo.campus.id === campus.id ? targetInfo.building : null;
+  const wingsById = useMemo(
+    () => new Map(campus.buildings.map((b) => [b.id, b.wings.map((rect) => rectToMeters(campus, rect))])),
+    [campus],
+  );
+  const overview = useMemo(() => boundsOf([...wingsById.values()].flat()), [wingsById]);
+
+  const targetBuilding: Building | null =
+    (target && campus.buildings.find((b) => b.id === target.building)) || null;
   const isFocused = focused && targetBuilding !== null;
 
-  // этажи раздвигаются, когда камера уже почти долетела - так эффект читается
-  const [exploded, setExploded] = useState(false);
+  const rooms = useMemo(
+    () => (targetBuilding ? buildingRooms(campus, targetBuilding) : []),
+    [campus, targetBuilding],
+  );
+  const targetRoom = target?.room ? findRoom(rooms, target.room, target.floor) : null;
+  const targetFloor = targetRoom?.floor ?? (target?.floor ? Math.min(target.floor, targetBuilding?.floors ?? 1) : null);
+
+  // этаж «открывается», когда камера уже почти долетела - так эффект читается
+  const [opened, setOpened] = useState(false);
   useEffect(() => {
-    if (!isFocused) {
-      setExploded(false);
-      return;
-    }
-    const timer = setTimeout(() => setExploded(true), 1100);
+    setOpened(false);
+    if (!isFocused) return;
+    const timer = setTimeout(() => setOpened(true), 1000);
     return () => clearTimeout(timer);
-  }, [isFocused, targetBuilding]);
+  }, [isFocused, targetBuilding, targetFloor]);
+
+  const focus = useMemo(() => {
+    if (!isFocused || !targetBuilding) return null;
+    const b = boundsOf(wingsById.get(targetBuilding.id)!);
+    const y = targetFloor ? (targetFloor - 1) * FLOOR_HEIGHT + SLAB : (targetBuilding.floors * FLOOR_HEIGHT) / 2;
+    return { ...b, y };
+  }, [isFocused, targetBuilding, targetFloor, wingsById]);
 
   const controls = useRef<CameraControls | null>(null);
-  const byId = new Map(campus.buildings.map((b) => [b.id, b]));
 
   return (
-    <Canvas camera={{ position: [260, 220, 340], fov: 38, near: 1, far: 3000 }} dpr={[1, 2]}>
+    <Canvas camera={{ position: [260, 220, 340], fov: 38, near: 1, far: 3000 }} dpr={[1, 1.5]}>
       <color attach="background" args={["#050b24"]} />
-      <fog attach="fog" args={["#050b24", 300, 900]} />
+      <fog attach="fog" args={["#050b24", 350, 1000]} />
       <ambientLight intensity={0.7} />
       <directionalLight position={[120, 260, 80]} intensity={1.1} />
 
@@ -295,51 +316,147 @@ export default function CampusScene({
         sectionColor="#2c45c4"
         cellThickness={0.6}
         sectionThickness={1}
-        fadeDistance={700}
+        fadeDistance={800}
         fadeStrength={1.4}
         position={[0, -0.05, 0]}
       />
 
-      <group position={[-offset.x, 0, -offset.z]}>
-        {campus.bridges.map((bridge) => {
-          const from = byId.get(bridge.from);
-          const to = byId.get(bridge.to);
-          if (!from || !to) return null;
-          return (
-            <BridgeModel
-              key={`${bridge.from}-${bridge.to}`}
-              from={from}
-              to={to}
-              floor={bridge.floor}
-              dimmed={isFocused}
+      {campus.streets.map((street) => {
+        const s = rectToMeters(campus, street.rect);
+        const alongX = s.w >= s.d;
+        return (
+          <group key={street.name}>
+            <mesh position={[s.x, 0.02, s.z]} rotation={[-Math.PI / 2, 0, 0]}>
+              <planeGeometry args={[s.w, s.d]} />
+              <meshBasicMaterial color="#1a2a78" transparent opacity={isFocused ? 0.25 : 0.55} />
+            </mesh>
+            <Html position={[s.x, 1, s.z]} center zIndexRange={[10, 0]}>
+              <span className={`campus-street${alongX ? "" : " vertical"}`}>{street.name}</span>
+            </Html>
+          </group>
+        );
+      })}
+
+      {campus.bridges.map((bridge, i) => {
+        const r = rectToMeters(campus, bridge.rect);
+        return bridge.floors.map((floor) => (
+          <mesh key={`${i}-${floor}`} position={[r.x, (floor - 1) * FLOOR_HEIGHT + SLAB / 2, r.z]}>
+            <boxGeometry args={[r.w, SLAB * 0.7, r.d]} />
+            <meshStandardMaterial
+              color="#38c6ff"
+              emissive="#38c6ff"
+              emissiveIntensity={0.6}
+              transparent
+              opacity={isFocused ? 0.06 : 0.4}
+              depthWrite={false}
             />
-          );
+          </mesh>
+        ));
+      })}
+
+      {campus.buildings.map((building) => {
+        const wings = wingsById.get(building.id)!;
+        const isTarget = building === targetBuilding;
+        const top = boundsOf(wings);
+        const buildingPlaces = isTarget && opened ? campus.places.filter((p) => p.building === building.id) : [];
+
+        return (
+          <group key={building.id}>
+            {Array.from({ length: building.floors }, (_, index) => {
+              const floor = index + 1;
+              let mode: FloorMode = "normal";
+              let lift = 0;
+              if (isFocused && !isTarget) mode = "dimmed";
+              if (isTarget && opened) {
+                if (targetFloor === null) {
+                  lift = index * EXPLODE_GAP;
+                } else if (floor === targetFloor) {
+                  mode = "target";
+                } else if (floor > targetFloor) {
+                  mode = "above";
+                  lift = LIFT;
+                } else {
+                  mode = "below";
+                }
+              }
+              const floorCells = isTarget && opened && floor === targetFloor ? rooms.filter((c) => c.floor === floor) : [];
+              const floorPlaces = buildingPlaces.filter((p) => p.floor === floor && (targetFloor === null || floor <= targetFloor));
+
+              return (
+                <Floor
+                  key={index}
+                  wings={wings}
+                  index={index}
+                  mode={mode}
+                  lift={lift}
+                  onClick={interactive && onSelectBuilding ? () => onSelectBuilding(building.id) : undefined}
+                >
+                  {floorCells.length > 0 && <RoomsLayer cells={floorCells} highlight={targetRoom} />}
+                  {floorPlaces.map((place) => {
+                    const [x, z] = toMeters(campus, place.at);
+                    return (
+                      <Html key={place.label + place.floor} position={[x, SLAB + 2, z]} center zIndexRange={[10, 0]}>
+                        <span className={`campus-place${place.kind === "cafe" ? " cafe" : ""}`}>
+                          {place.label} · {place.floor} эт.
+                        </span>
+                      </Html>
+                    );
+                  })}
+                </Floor>
+              );
+            })}
+
+            {!isFocused && (
+              <Html position={[top.x, building.floors * FLOOR_HEIGHT + 4, top.z]} center zIndexRange={[10, 0]}>
+                <span className="campus-label">{building.label ?? building.id}</span>
+              </Html>
+            )}
+
+            {isTarget && (
+              <Html
+                position={[
+                  targetRoom?.x ?? top.x,
+                  targetFloor ? (targetFloor - 1) * FLOOR_HEIGHT + SLAB + 6 : building.floors * FLOOR_HEIGHT + 6,
+                  targetRoom?.z ?? top.z,
+                ]}
+                center
+                zIndexRange={[10, 0]}
+              >
+                <div className={`campus-pin${opened ? " dropped" : ""}`}>
+                  <span className="campus-pin-title">
+                    {target?.room ? `${building.id}-${target.room}` : building.name}
+                  </span>
+                  {targetFloor && (
+                    <span className="campus-pin-sub">
+                      {targetFloor} этаж{targetRoom?.label ? ` · ${targetRoom.label}` : ""}
+                    </span>
+                  )}
+                </div>
+              </Html>
+            )}
+          </group>
+        );
+      })}
+
+      {campus.entrances
+        .filter((entrance) => !isFocused || entrance.main || entrance.building === targetBuilding?.id)
+        .map((entrance, i) => {
+          const [x, z] = toMeters(campus, entrance.at);
+          return <EntranceMarker key={i} x={x} z={z} dir={entrance.dir} main={entrance.main} />;
         })}
-        {campus.buildings.map((building) => (
-          <BuildingModel
-            key={building.id}
-            building={building}
-            state={!isFocused ? "normal" : building === targetBuilding ? "target" : "dimmed"}
-            exploded={exploded && building === targetBuilding}
-            targetFloor={building === targetBuilding ? target?.floor ?? null : null}
-            targetRoom={building === targetBuilding ? target?.room ?? null : null}
-            onSelect={interactive ? onSelectBuilding : undefined}
-          />
-        ))}
-      </group>
 
       <CameraControls
         ref={controls}
         enabled={interactive}
         smoothTime={0.9}
-        minDistance={40}
+        minDistance={30}
         maxDistance={900}
         maxPolarAngle={Math.PI * 0.45}
       />
-      <CameraRig controls={controls} campus={campus} offset={offset} target={targetBuilding} focused={isFocused} />
+      <CameraRig controls={controls} overview={overview} focus={focus} />
 
-      <EffectComposer>
-        <Bloom mipmapBlur luminanceThreshold={0.15} intensity={0.9} radius={0.7} />
+      <EffectComposer multisampling={0}>
+        <Bloom mipmapBlur luminanceThreshold={0.2} intensity={0.7} radius={0.6} />
       </EffectComposer>
     </Canvas>
   );

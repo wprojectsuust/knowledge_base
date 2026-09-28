@@ -1,20 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import { CampusMap } from "@/components/campus/CampusMap";
-import { CAMPUSES, DEFAULT_CAMPUS_ID } from "@/lib/campus-data";
+import { CampusMap, type CampusTarget } from "@/components/campus/CampusMap";
+import { CAMPUSES, DEFAULT_CAMPUS_ID, findBuilding } from "@/lib/campus-data";
+
+/** "7-404", "кабинет 3-106б" -> корпус + кабинет; этаж - первая цифра кабинета. */
+function parseRoomQuery(query: string): CampusTarget | null {
+  const match = query.trim().match(/(\S+?)\s*-\s*(\d{3}[а-яa-z]?)$/i);
+  if (!match) return null;
+  return { building: match[1], room: match[2].toLowerCase(), floor: Number(match[2][0]) };
+}
 
 export default function MapPage() {
   const [campusId, setCampusId] = useState(DEFAULT_CAMPUS_ID);
-  const [buildingId, setBuildingId] = useState<string | null>(null);
-  const [floor, setFloor] = useState<number | null>(null);
+  const [target, setTarget] = useState<CampusTarget | null>(null);
+  const [query, setQuery] = useState("");
+  const [queryError, setQueryError] = useState(false);
 
   const campus = CAMPUSES.find((item) => item.id === campusId)!;
-  const building = campus.buildings.find((item) => item.id === buildingId) ?? null;
+  const building = target ? campus.buildings.find((item) => item.id === target.building) ?? null : null;
 
   function selectBuilding(id: string | null) {
-    setBuildingId(id);
-    setFloor(null);
+    setTarget(id ? { building: id } : null);
+  }
+
+  function searchRoom(event: React.FormEvent) {
+    event.preventDefault();
+    const parsed = parseRoomQuery(query);
+    const found = parsed ? findBuilding(parsed.building) : null;
+    setQueryError(!found);
+    if (!parsed || !found) return;
+    setCampusId(found.campus.id);
+    setTarget(parsed);
   }
 
   return (
@@ -33,6 +50,21 @@ export default function MapPage() {
             {item.title} · {item.address}
           </button>
         ))}
+        <form className="map-search" onSubmit={searchRoom}>
+          <input
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setQueryError(false);
+            }}
+            placeholder="Кабинет, напр. 7-404"
+            aria-invalid={queryError}
+            style={queryError ? { borderColor: "#ff9a94" } : undefined}
+          />
+          <button type="submit" className="chip">
+            Найти
+          </button>
+        </form>
       </div>
 
       <div className="map-toolbar">
@@ -43,11 +75,11 @@ export default function MapPage() {
           <button
             key={item.id}
             type="button"
-            className={`chip${item.id === buildingId ? " active" : ""}`}
+            className={`chip${item.id === building?.id ? " active" : ""}`}
             onClick={() => selectBuilding(item.id)}
             title={item.name}
           >
-            {item.id}
+            {item.label ?? item.id}
           </button>
         ))}
       </div>
@@ -58,8 +90,10 @@ export default function MapPage() {
             <button
               key={number}
               type="button"
-              className={`chip${number === floor ? " active" : ""}`}
-              onClick={() => setFloor(number === floor ? null : number)}
+              className={`chip${number === target?.floor ? " active" : ""}`}
+              onClick={() =>
+                setTarget({ building: building.id, floor: number === target?.floor ? null : number })
+              }
             >
               {number} этаж
             </button>
@@ -70,14 +104,15 @@ export default function MapPage() {
       <div className="map-stage">
         <CampusMap
           campusId={campusId}
-          target={building ? { building: building.id, floor } : null}
+          target={target}
           focused={building !== null}
           onSelectBuilding={selectBuilding}
         />
       </div>
 
       <p className="map-hint">
-        Крутите мышью, колесо — масштаб, клик по корпусу — перелёт к нему. Расположение корпусов пока примерное.
+        Крутите мышью, колесо — масштаб, клик по корпусу — перелёт к нему, этаж — открыть его с кабинетами. Корпуса
+        и переходы — по схеме UUST MAPS; этажность и раскладка кабинетов пока примерные.
       </p>
     </section>
   );
