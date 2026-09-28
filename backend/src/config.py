@@ -9,7 +9,8 @@ LLM_MAX_CONCURRENCY: int = int(os.environ.get("LLM_MAX_CONCURRENCY", "5"))
 
 # Сколько раз повторять запрос к LLM при временной ошибке (503 перегрузка, 429, сеть) -
 # с экспоненциальной паузой. Gemini регулярно отвечает 503 "high demand" на пиках.
-LLM_MAX_RETRIES: int = int(os.environ.get("LLM_MAX_RETRIES", "4"))
+# Повторы - на каждую модель из GEMINI_MODEL; при нескольких моделях больше и не нужно.
+LLM_MAX_RETRIES: int = int(os.environ.get("LLM_MAX_RETRIES", "2"))
 
 # Максимум одновременных запросов к локальной модели эмбеддингов (CPU-bound) -
 # защита от перегрузки CPU при большом числе параллельных запросов.

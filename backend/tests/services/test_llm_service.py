@@ -93,3 +93,20 @@ def test_gemini_provider_wraps_api_failure_into_llm_unavailable(fake_openai: Mag
 
     with pytest.raises(LLMUnavailableError):
         provider.generate("вопрос")
+
+
+def test_gemini_provider_falls_back_to_next_model_when_first_is_overloaded(fake_openai: MagicMock) -> None:
+    ok = MagicMock()
+    ok.choices = [MagicMock(message=MagicMock(content="ответ"))]
+
+    def create(**kwargs):
+        if kwargs["model"] == "busy-model":
+            raise RuntimeError("503 high demand")
+        return ok
+
+    fake_openai.side_effect = create
+
+    provider = GeminiProvider(api_key="key", model="busy-model, free-model")
+
+    assert provider.generate("вопрос") == "ответ"
+    assert [call.kwargs["model"] for call in fake_openai.call_args_list] == ["busy-model", "free-model"]

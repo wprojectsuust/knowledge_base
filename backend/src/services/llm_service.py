@@ -43,7 +43,10 @@ class LLMProvider(Protocol):
 
 
 class GeminiProvider:
-    """Провайдер поверх Gemini через OpenAI-совместимый эндпоинт."""
+    """Провайдер поверх Gemini через OpenAI-совместимый эндпоинт.
+
+    model может быть списком через запятую: первая - основная, остальные - запасные на случай,
+    когда основная перегружена (Gemini регулярно отвечает 503 "high demand" на бесплатном тарифе)."""
 
     def __init__(self, api_key: str, model: str, proxy_url: str | None = None) -> None:
         import httpx
@@ -58,23 +61,29 @@ class GeminiProvider:
             # чаще, чем по умолчанию (2), с экспоненциальной паузой внутри клиента openai
             max_retries=config.LLM_MAX_RETRIES,
         )
-        self._model = model
-        logger.info("GeminiProvider: инициализирован, model=%s, прокси=%s", model, "да" if proxy_url else "нет")
+        self._models = [name.strip() for name in model.split(",") if name.strip()]
+        logger.info(
+            "GeminiProvider: инициализирован, модели=%s, прокси=%s", self._models, "да" if proxy_url else "нет"
+        )
 
     def generate(self, prompt: str) -> str:
-        logger.debug("Gemini запрос: model=%s prompt=%s", self._model, preview(prompt))
-        try:
-            response = self._client.chat.completions.create(
-                model=self._model,
-                temperature=0.2,
-                messages=[{"role": "user", "content": prompt}],
-            )
-        except Exception as error:  # любая ошибка внешнего API для нас значит «LLM недоступна»
-            logger.warning("Gemini недоступна после повторов: %s", error)
-            raise LLMUnavailableError(str(error)) from error
-        answer = response.choices[0].message.content.strip()
-        logger.debug("Gemini ответ: %s", preview(answer))
-        return answer
+        last_error: Exception | None = None
+        for model in self._models:
+            logger.debug("Gemini запрос: model=%s prompt=%s", model, preview(prompt))
+            try:
+                response = self._client.chat.completions.create(
+                    model=model,
+                    temperature=0.2,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+            except Exception as error:  # любая ошибка внешнего API для нас значит «модель недоступна»
+                logger.warning("Gemini %s недоступна после повторов: %s", model, error)
+                last_error = error
+                continue
+            answer = response.choices[0].message.content.strip()
+            logger.debug("Gemini ответ (%s): %s", model, preview(answer))
+            return answer
+        raise LLMUnavailableError(str(last_error)) from last_error
 
 
 class LLMService:
@@ -100,6 +109,6 @@ class LLMService:
     @classmethod
     def from_env(cls) -> "LLMService":
         api_key = os.environ["GEMINI_API_KEY"]
-        model = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite")
+        model = os.environ.get("GEMINI_MODEL", "gemini-3.6-flash,gemini-2.5-flash,gemini-flash-latest,gemini-3.1-flash-lite")
         proxy = os.environ.get("PROXY_URL")
         return cls(GeminiProvider(api_key=api_key, model=model, proxy_url=proxy))

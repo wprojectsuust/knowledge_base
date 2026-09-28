@@ -86,7 +86,7 @@ curl -X POST http://localhost:8000/question \
 
 ## Переменные окружения
 
-См. `.env.example` - LLM (`GEMINI_API_KEY`, `GEMINI_MODEL`, опционально `PROXY_URL`),
+См. `.env.example` - LLM (`GEMINI_API_KEY`, `GEMINI_MODEL` - одна модель или несколько через запятую как запасные при перегрузке, опционально `PROXY_URL`),
 PostgreSQL (`POSTGRES_*`), путь для Chroma (`CHROMA_PATH`), уровень логирования (`LOG_LEVEL`).
 
 ## Тесты
