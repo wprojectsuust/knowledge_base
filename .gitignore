@@ -7,3 +7,8 @@ __pycache__/
 htmlcov/
 .env
 chroma_db/
+
+# frontend (Next.js)
+node_modules/
+.next/
+.env.local

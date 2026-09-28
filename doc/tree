@@ -4,121 +4,150 @@
 .
 ├── .githooks
 │   └── pre-commit
+├── backend
+│   ├── doc
+│   │   └── adrs
+│   │       ├── 000-clean-architecture-tdd-two-databases.md
+│   │       └── 001-relational-db-for-documents.md
+│   ├── src
+│   │   ├── api
+│   │   │   ├── static
+│   │   │   │   └── index.html
+│   │   │   ├── __init__.py
+│   │   │   ├── app.py
+│   │   │   ├── dependencies.py
+│   │   │   ├── routes.py
+│   │   │   └── schemas.py
+│   │   ├── domain
+│   │   │   ├── __init__.py
+│   │   │   ├── data.py
+│   │   │   ├── division.py
+│   │   │   └── schedule.py
+│   │   ├── repositories
+│   │   │   ├── __init__.py
+│   │   │   ├── chroma_vector_repository.py
+│   │   │   ├── data_repository.py
+│   │   │   ├── isu_groups.json
+│   │   │   ├── isu_schedule_repository.py
+│   │   │   ├── postgres_data_repository.py
+│   │   │   ├── postgres_question_cache_repository.py
+│   │   │   ├── postgres_schedule_cache_repository.py
+│   │   │   ├── question_cache_repository.py
+│   │   │   ├── schedule_cache_repository.py
+│   │   │   ├── schedule_repository.py
+│   │   │   └── vector_repository.py
+│   │   ├── services
+│   │   │   ├── __init__.py
+│   │   │   ├── data_store_service.py
+│   │   │   ├── embedding_service.py
+│   │   │   ├── llm_service.py
+│   │   │   ├── question_cache_service.py
+│   │   │   ├── schedule_cache_service.py
+│   │   │   ├── schedule_service.py
+│   │   │   └── vector_search_service.py
+│   │   ├── use_cases
+│   │   │   ├── __init__.py
+│   │   │   ├── analyze_data.py
+│   │   │   ├── get_really_questions.py
+│   │   │   ├── get_schedule.py
+│   │   │   ├── new_data.py
+│   │   │   ├── question.py
+│   │   │   ├── remove_data.py
+│   │   │   └── search_data.py
+│   │   ├── __init__.py
+│   │   ├── config.py
+│   │   └── logging_utils.py
+│   ├── tests
+│   │   ├── api
+│   │   │   └── test_routes.py
+│   │   ├── domain
+│   │   │   └── test_division.py
+│   │   ├── e2e
+│   │   │   └── test_knowledge_base_workflow_e2e.py
+│   │   ├── integration
+│   │   │   ├── test_chroma_vector_repository_integration.py
+│   │   │   ├── test_isu_schedule_repository_integration.py
+│   │   │   ├── test_postgres_data_repository_integration.py
+│   │   │   └── test_postgres_question_cache_repository_integration.py
+│   │   ├── repositories
+│   │   │   ├── test_chroma_vector_repository.py
+│   │   │   ├── test_isu_schedule_repository.py
+│   │   │   ├── test_postgres_data_repository.py
+│   │   │   ├── test_postgres_question_cache_repository.py
+│   │   │   └── test_postgres_schedule_cache_repository.py
+│   │   ├── services
+│   │   │   ├── test_embedding_service.py
+│   │   │   └── test_llm_service.py
+│   │   ├── stress
+│   │   │   └── question_load_test.js
+│   │   ├── use_cases
+│   │   │   ├── test_analyze_data.py
+│   │   │   ├── test_get_really_questions.py
+│   │   │   ├── test_get_schedule.py
+│   │   │   ├── test_new_data.py
+│   │   │   ├── test_question.py
+│   │   │   ├── test_remove_data.py
+│   │   │   └── test_search_data.py
+│   │   └── conftest.py
+│   ├── .dockerignore
+│   ├── Dockerfile
+│   ├── README.md
+│   ├── TODO
+│   ├── main.py
+│   └── pyproject.toml
 ├── doc
-│   ├── adrs
-│   │   ├── 000-clean-architecture-tdd-two-databases.md
-│   │   └── 001-relational-db-for-documents.md
 │   └── tree
 ├── example
-│   └── raspisanie
-│       ├── extract_groups.py
-│       ├── groups.json
-│       └── isu_api.py
+│   ├── raspisanie
+│   │   ├── extract_groups.py
+│   │   ├── groups.json
+│   │   └── isu_api.py
+│   └── ref.png
+├── frontend
+│   ├── app
+│   │   ├── globals.css
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── components
+│   │   ├── QuickAccessCard.tsx
+│   │   └── Sidebar.tsx
+│   ├── lib
+│   │   └── api.ts
+│   ├── public
+│   │   └── .gitkeep
+│   ├── .dockerignore
+│   ├── .env.local.example
+│   ├── Dockerfile
+│   ├── next-env.d.ts
+│   ├── next.config.mjs
+│   ├── package-lock.json
+│   ├── package.json
+│   └── tsconfig.json
 ├── scripts
 │   └── tree.py
-├── src
-│   ├── api
-│   │   ├── static
-│   │   │   └── index.html
-│   │   ├── __init__.py
-│   │   ├── app.py
-│   │   ├── dependencies.py
-│   │   ├── routes.py
-│   │   └── schemas.py
-│   ├── domain
-│   │   ├── __init__.py
-│   │   ├── data.py
-│   │   ├── division.py
-│   │   └── schedule.py
-│   ├── repositories
-│   │   ├── __init__.py
-│   │   ├── chroma_vector_repository.py
-│   │   ├── data_repository.py
-│   │   ├── isu_groups.json
-│   │   ├── isu_schedule_repository.py
-│   │   ├── postgres_data_repository.py
-│   │   ├── postgres_question_cache_repository.py
-│   │   ├── postgres_schedule_cache_repository.py
-│   │   ├── question_cache_repository.py
-│   │   ├── schedule_cache_repository.py
-│   │   ├── schedule_repository.py
-│   │   └── vector_repository.py
-│   ├── services
-│   │   ├── __init__.py
-│   │   ├── data_store_service.py
-│   │   ├── embedding_service.py
-│   │   ├── llm_service.py
-│   │   ├── question_cache_service.py
-│   │   ├── schedule_cache_service.py
-│   │   ├── schedule_service.py
-│   │   └── vector_search_service.py
-│   ├── use_cases
-│   │   ├── __init__.py
-│   │   ├── analyze_data.py
-│   │   ├── get_really_questions.py
-│   │   ├── get_schedule.py
-│   │   ├── new_data.py
-│   │   ├── question.py
-│   │   ├── remove_data.py
-│   │   └── search_data.py
-│   ├── __init__.py
-│   ├── config.py
-│   └── logging_utils.py
-├── tests
-│   ├── api
-│   │   └── test_routes.py
-│   ├── domain
-│   │   └── test_division.py
-│   ├── e2e
-│   │   └── test_knowledge_base_workflow_e2e.py
-│   ├── integration
-│   │   ├── test_chroma_vector_repository_integration.py
-│   │   ├── test_isu_schedule_repository_integration.py
-│   │   ├── test_postgres_data_repository_integration.py
-│   │   └── test_postgres_question_cache_repository_integration.py
-│   ├── repositories
-│   │   ├── test_chroma_vector_repository.py
-│   │   ├── test_isu_schedule_repository.py
-│   │   ├── test_postgres_data_repository.py
-│   │   ├── test_postgres_question_cache_repository.py
-│   │   └── test_postgres_schedule_cache_repository.py
-│   ├── services
-│   │   ├── test_embedding_service.py
-│   │   └── test_llm_service.py
-│   ├── stress
-│   │   └── question_load_test.js
-│   ├── use_cases
-│   │   ├── test_analyze_data.py
-│   │   ├── test_get_really_questions.py
-│   │   ├── test_get_schedule.py
-│   │   ├── test_new_data.py
-│   │   ├── test_question.py
-│   │   ├── test_remove_data.py
-│   │   └── test_search_data.py
-│   └── conftest.py
-├── .dockerignore
 ├── .env.example
 ├── .gitignore
-├── Dockerfile
 ├── Makefile
 ├── README.md
-├── TODO
-├── docker-compose.yml
-├── main.py
-└── pyproject.toml
+└── docker-compose.yml
 
 Строки кода
 ============================================================
-Всего файлов: 82
-Всего строк: 9193
+Всего файлов: 99
+Всего строк: 23052
 
 По расширениям:
-  .json                4776
-  .py                  3646
-  (без расширения)     237
+  .png                 12018
+  .json                5884
+  .py                  3657
+  .tsx                 511
+  (без расширения)     299
   .html                216
-  .md                  172
+  .md                  200
   .js                  61
+  .css                 56
   .toml                41
-  .yml                 26
-  .example             18
+  .ts                  41
+  .yml                 39
+  .example             23
+  .mjs                 6

@@ -1,14 +1,27 @@
 services:
-  app:
-    build: .
+  backend:
+    build:
+      context: ./backend
     ports:
       - "8000:8000"
     env_file:
       - .env
+    environment:
+      FRONTEND_ORIGIN: http://localhost:3000
     volumes:
       - chroma_data:/data/chroma_db
     depends_on:
       - postgres
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
 
   postgres:
     image: postgres:16-alpine
