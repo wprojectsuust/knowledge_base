@@ -6,12 +6,14 @@ from src.repositories.chroma_vector_repository import ChromaVectorRepository
 from src.repositories.isu_schedule_repository import IsuScheduleRepository
 from src.repositories.json_campus_repository import JsonCampusRepository
 from src.repositories.postgres_data_repository import PostgresDataRepository
+from src.repositories.uust_news_repository import UustNewsRepository
 from src.repositories.postgres_question_cache_repository import PostgresQuestionCacheRepository
 from src.repositories.postgres_schedule_cache_repository import PostgresScheduleCacheRepository
 from src.services.campus_service import CampusService
 from src.services.data_store_service import DataStoreService
 from src.services.embedding_service import EmbeddingService
 from src.services.llm_service import LLMService
+from src.services.news_service import NewsService
 from src.services.question_cache_service import QuestionCacheService
 from src.services.schedule_cache_service import ScheduleCacheService
 from src.services.schedule_service import ScheduleService
@@ -20,6 +22,7 @@ from src.use_cases.analyze_data import AnalyzeDataByLLMForNewData, AnalyzeDataBy
 from src.use_cases.analyze_schedule import AnalyzeScheduleForUser
 from src.use_cases.build_route import BuildRoute
 from src.use_cases.get_schedule import GetSchedule
+from src.use_cases.import_news import ImportNews
 from src.use_cases.new_data import NewData
 from src.use_cases.plan_question import PlanQuestion
 from src.use_cases.question import Question
@@ -153,3 +156,12 @@ def get_question_use_case() -> Question:
 
 def get_resolve_location_use_case() -> ResolveLocation:
     return ResolveLocation()
+
+
+@lru_cache
+def get_news_service() -> NewsService:
+    return NewsService(UustNewsRepository())
+
+
+def get_import_news_use_case() -> ImportNews:
+    return ImportNews(get_news_service(), get_data_store_service(), get_new_data_use_case())

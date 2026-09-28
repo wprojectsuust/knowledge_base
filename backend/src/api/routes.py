@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse
 from src.api.dependencies import (
     get_build_route_use_case,
     get_campus_service,
+    get_import_news_use_case,
     get_new_data_use_case,
     get_question_use_case,
     get_remove_data_use_case,
@@ -19,6 +20,7 @@ from src.api.schemas import (
     DataCreated,
     DataIn,
     DataOut,
+    ImportReportOut,
     LocationOut,
     OkResponse,
     QuestionRequest,
@@ -36,6 +38,7 @@ from src.domain.dialog import DialogTurn
 from src.domain.division import divisions_by_slug
 from src.services.campus_service import CampusService
 from src.use_cases.build_route import BuildRoute
+from src.use_cases.import_news import ImportNews
 from src.use_cases.new_data import NewData
 from src.use_cases.question import Question
 from src.use_cases.remove_data import RemoveDataById
@@ -175,3 +178,14 @@ async def build_route(payload: RouteRequestIn, use_case: BuildRoute = Depends(ge
     if route is None:
         raise HTTPException(status_code=404, detail="Не удалось построить маршрут: место не найдено на карте")
     return route_out(route)
+
+
+@router.post("/news/import", response_model=ImportReportOut)
+async def import_news(
+    limit: int = 14, use_case: ImportNews = Depends(get_import_news_use_case)
+) -> ImportReportOut:
+    """Подтянуть свежие новости uust.ru в базу знаний прямо сейчас (фоном это происходит и так,
+    см. NEWS_IMPORT_INTERVAL_MINUTES)."""
+    logger.info("POST /news/import: limit=%d", limit)
+    report = await use_case.execute(limit=min(max(limit, 1), 100))
+    return ImportReportOut(imported=report.imported, skipped=report.skipped, failed=report.failed)

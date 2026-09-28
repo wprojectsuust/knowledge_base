@@ -107,6 +107,9 @@ class FakeDataStoreService:
     async def remove(self, id_: int) -> None:
         self.store.pop(id_, None)
 
+    async def existing_sources(self, sources: list[str]) -> set[str]:
+        return {item.source for item in self.store.values() if item.source in sources}
+
 
 @pytest.fixture
 def fake_data_store_service() -> FakeDataStoreService:

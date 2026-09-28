@@ -30,6 +30,12 @@ EMBEDDING_MAX_CONCURRENCY: int = int(os.environ.get("EMBEDDING_MAX_CONCURRENCY",
 # снова дёргать живой сайт ИСУ.
 SCHEDULE_CACHE_TTL_SECONDS: int = int(os.environ.get("SCHEDULE_CACHE_TTL_SECONDS", str(60 * 60)))
 
+# Импорт новостей с uust.ru в базу знаний: как часто (минуты, 0 - только вручную через
+# POST /news/import) и сколько свежих новостей проверять за раз. Каждая НОВАЯ новость - один
+# вызов LLM (генерация поисковых вопросов), уже загруженные пропускаются без запросов.
+NEWS_IMPORT_INTERVAL_MINUTES: int = int(os.environ.get("NEWS_IMPORT_INTERVAL_MINUTES", "180"))
+NEWS_IMPORT_LIMIT: int = int(os.environ.get("NEWS_IMPORT_LIMIT", "14"))
+
 # Порог косинусового сходства для обычного поиска по базе знаний: фрагменты ниже него не
 # попадают в контекст LLM - иначе на вопрос без ответа в базе модель пересказывает всё
 # подряд из топ-N. Реальные значения видны в DEBUG-логах SearchDataByListOfStr - по ним

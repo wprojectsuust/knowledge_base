@@ -286,3 +286,19 @@ def test_ask_question_returns_503_with_readable_message_when_llm_is_overloaded()
     assert "перегружен" in response.json()["detail"]
     # CORS-заголовок на месте - браузер покажет сообщение, а не «ошибку CORS»
     assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+
+
+def test_news_import_endpoint_reports_what_was_imported() -> None:
+    from src.api.dependencies import get_import_news_use_case
+    from src.domain.news import ImportReport
+
+    class _StubImport:
+        async def execute(self, limit: int) -> ImportReport:
+            return ImportReport(imported=3, skipped=10, failed=1)
+
+    client = _client_with_overrides({get_import_news_use_case: lambda: _StubImport()})
+
+    response = client.post("/news/import?limit=14")
+
+    assert response.status_code == 200
+    assert response.json() == {"imported": 3, "skipped": 10, "failed": 1}

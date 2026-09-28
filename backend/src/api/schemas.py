@@ -30,6 +30,12 @@ class ClarificationOut(BaseModel):
     question: str
 
 
+class ImportReportOut(BaseModel):
+    imported: int
+    skipped: int
+    failed: int
+
+
 class RoutePointOut(BaseModel):
     x: float
     y: float

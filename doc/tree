@@ -27,6 +27,7 @@
 │   │   │   ├── dialog.py
 │   │   │   ├── division.py
 │   │   │   ├── location.py
+│   │   │   ├── news.py
 │   │   │   ├── plan.py
 │   │   │   ├── route.py
 │   │   │   └── schedule.py
@@ -39,12 +40,14 @@
 │   │   │   ├── isu_groups.json
 │   │   │   ├── isu_schedule_repository.py
 │   │   │   ├── json_campus_repository.py
+│   │   │   ├── news_repository.py
 │   │   │   ├── postgres_data_repository.py
 │   │   │   ├── postgres_question_cache_repository.py
 │   │   │   ├── postgres_schedule_cache_repository.py
 │   │   │   ├── question_cache_repository.py
 │   │   │   ├── schedule_cache_repository.py
 │   │   │   ├── schedule_repository.py
+│   │   │   ├── uust_news_repository.py
 │   │   │   └── vector_repository.py
 │   │   ├── services
 │   │   │   ├── __init__.py
@@ -52,6 +55,7 @@
 │   │   │   ├── data_store_service.py
 │   │   │   ├── embedding_service.py
 │   │   │   ├── llm_service.py
+│   │   │   ├── news_service.py
 │   │   │   ├── question_cache_service.py
 │   │   │   ├── schedule_cache_service.py
 │   │   │   ├── schedule_service.py
@@ -62,6 +66,7 @@
 │   │   │   ├── analyze_schedule.py
 │   │   │   ├── build_route.py
 │   │   │   ├── get_schedule.py
+│   │   │   ├── import_news.py
 │   │   │   ├── new_data.py
 │   │   │   ├── plan_question.py
 │   │   │   ├── question.py
@@ -80,6 +85,9 @@
 │   │   │   └── test_division.py
 │   │   ├── e2e
 │   │   │   └── test_knowledge_base_workflow_e2e.py
+│   │   ├── fixtures
+│   │   │   ├── uust_news_item.html
+│   │   │   └── uust_news_list.html
 │   │   ├── integration
 │   │   │   ├── test_chroma_vector_repository_integration.py
 │   │   │   ├── test_isu_schedule_repository_integration.py
@@ -90,7 +98,8 @@
 │   │   │   ├── test_isu_schedule_repository.py
 │   │   │   ├── test_postgres_data_repository.py
 │   │   │   ├── test_postgres_question_cache_repository.py
-│   │   │   └── test_postgres_schedule_cache_repository.py
+│   │   │   ├── test_postgres_schedule_cache_repository.py
+│   │   │   └── test_uust_news_repository.py
 │   │   ├── services
 │   │   │   ├── test_campus_service.py
 │   │   │   ├── test_embedding_service.py
@@ -101,6 +110,7 @@
 │   │   │   ├── test_analyze_data.py
 │   │   │   ├── test_build_route.py
 │   │   │   ├── test_get_schedule.py
+│   │   │   ├── test_import_news.py
 │   │   │   ├── test_new_data.py
 │   │   │   ├── test_plan_question.py
 │   │   │   ├── test_question.py
@@ -170,22 +180,22 @@
 
 Строки кода
 ============================================================
-Всего файлов: 133
-Всего строк: 30438
+Всего файлов: 142
+Всего строк: 30884
 
 По расширениям:
   .png                 12018
   .json                7576
-  .py                  5660
+  .py                  6068
   .tsx                 1919
   .css                 1420
   .jpg                 599
   (без расширения)     338
   .ts                  313
-  .html                216
-  .md                  207
+  .html                247
+  .md                  210
   .js                  61
   .toml                41
   .yml                 39
-  .example             24
+  .example             28
   .mjs                 7

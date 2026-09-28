@@ -23,3 +23,7 @@ class DataRepository(Protocol):
 
     async def delete(self, id_: int) -> None:
         ...
+
+    async def existing_sources(self, sources: list[str]) -> set[str]:
+        """Какие из источников уже есть в базе (например, уже загруженные новости)."""
+        ...

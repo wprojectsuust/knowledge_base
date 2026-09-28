@@ -23,6 +23,7 @@ _SELECT_ONE_SQL = "SELECT id, source, content, division FROM documents WHERE id 
 _SELECT_MANY_SQL = "SELECT id, source, content, division FROM documents WHERE id = ANY($1::int[])"
 _INSERT_SQL = "INSERT INTO documents (source, content, division) VALUES ($1, $2, $3) RETURNING id"
 _DELETE_SQL = "DELETE FROM documents WHERE id = $1"
+_EXISTING_SOURCES_SQL = "SELECT DISTINCT source FROM documents WHERE source = ANY($1::text[])"
 
 
 class PostgresDataRepository:
@@ -82,3 +83,11 @@ class PostgresDataRepository:
         pool = await self._get_pool()
         logger.debug("SQL delete: id=%s", id_)
         await pool.execute(_DELETE_SQL, id_)
+
+    async def existing_sources(self, sources: list[str]) -> set[str]:
+        if not sources:
+            return set()
+        pool = await self._get_pool()
+        rows = await pool.fetch(_EXISTING_SOURCES_SQL, sources)
+        logger.debug("SQL existing_sources: из %d уже есть %d", len(sources), len(rows))
+        return {row["source"] for row in rows}

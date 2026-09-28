@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -7,9 +8,11 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
+from src import config
 from src.api.dependencies import (
     get_data_store_service,
     get_embedding_service,
+    get_import_news_use_case,
     get_llm_service,
     get_question_cache_service,
     get_schedule_cache_service,
@@ -19,6 +22,19 @@ from src.api.routes import router
 from src.services.llm_service import LLMUnavailableError
 
 logger = logging.getLogger(__name__)
+
+
+async def _import_news_periodically() -> None:
+    """Фоновый импорт новостей uust.ru. Первый прогон - через минуту после старта (чтобы не
+    мешать прогреву), дальше раз в NEWS_IMPORT_INTERVAL_MINUTES. Ошибка одного прогона не
+    останавливает следующие."""
+    await asyncio.sleep(60)
+    while True:
+        try:
+            await get_import_news_use_case().execute(limit=config.NEWS_IMPORT_LIMIT)
+        except Exception:
+            logger.exception("Импорт новостей: прогон упал, попробую в следующий раз")
+        await asyncio.sleep(config.NEWS_IMPORT_INTERVAL_MINUTES * 60)
 
 
 @asynccontextmanager
@@ -55,9 +71,16 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("PostgreSQL (кэш расписания): не удалось подключиться заранее, будет создано лениво при первом запросе")
 
+    news_task = None
+    if config.NEWS_IMPORT_INTERVAL_MINUTES > 0:
+        news_task = asyncio.create_task(_import_news_periodically())
+        logger.info("Импорт новостей uust.ru: раз в %d мин", config.NEWS_IMPORT_INTERVAL_MINUTES)
+
     logger.info("Сервер готов принимать запросы")
     yield
     logger.info("Остановка сервера")
+    if news_task is not None:
+        news_task.cancel()
 
 
 def create_app() -> FastAPI:

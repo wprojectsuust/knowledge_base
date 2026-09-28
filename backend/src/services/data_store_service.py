@@ -24,3 +24,6 @@ class DataStoreService:
 
     async def remove(self, id_: int) -> None:
         await self._data_repository.delete(id_)
+
+    async def existing_sources(self, sources: list[str]) -> set[str]:
+        return await self._data_repository.existing_sources(sources)
