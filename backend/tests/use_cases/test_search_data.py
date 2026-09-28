@@ -51,3 +51,19 @@ async def test_search_by_list_of_str_prioritizes_division_matches(
 
     assert result[0] == matched
     assert other in result
+
+
+async def test_search_by_list_of_str_drops_documents_below_similarity_threshold(
+    fake_embedding_service, fake_vector_search_service, fake_data_store_service
+) -> None:
+    relevant = Data(id=1, source="uust.ru", content="Пропуски занятий отрабатываются через тьютора.")
+    irrelevant = Data(id=2, source="uust.ru", content="Клуб настольных игр встречается по вторникам.")
+    for item, score in ((relevant, 0.9), (irrelevant, 0.1)):
+        await fake_vector_search_service.index(item.id, [1.0])
+        fake_vector_search_service.scores[item.id] = score
+        fake_data_store_service.store[item.id] = item
+    use_case = SearchDataByListOfStr(fake_embedding_service, fake_vector_search_service, fake_data_store_service)
+
+    result = await use_case.execute(["что делать, если пропустил пару"])
+
+    assert result == [relevant]

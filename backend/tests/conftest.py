@@ -64,9 +64,13 @@ class FakeVectorSearchService:
             ids = [id_ for id_ in ids if self.divisions.get(id_) == division]
         return ids[:n_results]
 
-    async def search_with_scores(self, embedding: list[float], n_results: int = 6) -> list[tuple[int, float]]:
-        scored = [(id_, self.scores.get(id_, 1.0)) for id_ in self.index_calls]
-        return scored[:n_results]
+    async def search_with_scores(
+        self, embedding: list[float], n_results: int = 6, division: str | None = None
+    ) -> list[tuple[int, float]]:
+        ids = list(self.index_calls.keys())
+        if division:
+            ids = [id_ for id_ in ids if self.divisions.get(id_) == division]
+        return [(id_, self.scores.get(id_, 1.0)) for id_ in ids][:n_results]
 
     async def index(self, id_: int, embedding: list[float], division: str | None = None) -> None:
         self.index_calls[id_] = embedding

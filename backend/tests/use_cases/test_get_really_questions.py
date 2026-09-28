@@ -55,3 +55,14 @@ async def test_prompt_offers_clarification_only_when_allowed(fake_llm_service) -
 
     await use_case.execute(question="какое у меня завтра расписание", can_clarify=False)
     assert "clarify-" not in fake_llm_service.last_prompt
+
+
+async def test_prompt_asks_to_normalize_group_and_not_to_clarify_how_to_questions(fake_llm_service) -> None:
+    fake_llm_service.response = "[]"
+    use_case = GetReallyQuestions(fake_llm_service)
+
+    await use_case.execute(question="как узнать расписание своей группы", can_clarify=True)
+
+    assert "ТОП-106Б" in fake_llm_service.last_prompt  # пример приведения группы к формату справочника
+    # фраза встречается дважды: в самом сообщении и как пример "не уточнять" в инструкции
+    assert fake_llm_service.last_prompt.lower().count("как узнать расписание своей группы") >= 2

@@ -1,5 +1,6 @@
 import logging
 
+from src import config
 from src.domain.data import Data
 from src.logging_utils import preview
 from src.services.data_store_service import DataStoreService
@@ -16,7 +17,10 @@ class SearchDataByListOfStr:
     Если передан division (обнаруженный по ключевым словам в вопросе пользователя), сначала
     приоритетно ищутся документы с этим тегом, а затем - обычный поиск без фильтра как fallback
     (мягкая приоритизация, а не жёсткий фильтр - чтобы неверно определённый или отсутствующий
-    у документа тег не давал пустой результат)."""
+    у документа тег не давал пустой результат).
+
+    Фрагменты с косинусовым сходством ниже config.SEARCH_SIMILARITY_THRESHOLD отбрасываются:
+    лучше честно сказать "в базе нет", чем подсунуть LLM нерелевантный контекст."""
 
     def __init__(
         self,
@@ -37,25 +41,21 @@ class SearchDataByListOfStr:
         for question in really_question:
             embedding = await self._embedding_service.encode(question)
 
-            if division:
-                prioritized = await self._vector_search_service.search(embedding, self._n_results, division=division)
-                logger.debug(
-                    "SearchDataByListOfStr: приоритетный поиск (division=%s) по %s нашёл id=%s",
-                    division,
-                    preview(question, 60),
-                    prioritized,
+            searches = [division, None] if division else [None]
+            for division_filter in searches:
+                scored = await self._vector_search_service.search_with_scores(
+                    embedding, self._n_results, division=division_filter
                 )
-                for id_ in prioritized:
-                    if id_ not in seen:
+                logger.debug(
+                    "SearchDataByListOfStr: по %s (division=%s) сходство: %s",
+                    preview(question, 60),
+                    division_filter,
+                    [(id_, round(score, 3)) for id_, score in scored],
+                )
+                for id_, score in scored:
+                    if score >= config.SEARCH_SIMILARITY_THRESHOLD and id_ not in seen:
                         seen.add(id_)
                         ids.append(id_)
-
-            found = await self._vector_search_service.search(embedding, self._n_results)
-            logger.debug("SearchDataByListOfStr: по вопросу %s нашлось id=%s", preview(question, 60), found)
-            for id_ in found:
-                if id_ not in seen:
-                    seen.add(id_)
-                    ids.append(id_)
 
         result = await self._data_store_service.get_many(ids)
         logger.info(

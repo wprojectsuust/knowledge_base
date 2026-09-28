@@ -20,6 +20,17 @@ _BUILDING_ROOM_PATTERN = re.compile(r"[Кк]орпус\s*№?\s*(\d+)\s*-\s*(\d+
 _VENUE_PATTERN = re.compile(r"(ауд\.?\s?\d+\w*|каб\.?\s?\d+\w*|корпус\s?№?\s?\d+)", re.IGNORECASE)
 
 
+# Латинские буквы, внешне неотличимые от кирилличских (после lower()) - частая опечатка
+# при смешанной раскладке: "TOП-106Б".
+_LATIN_TO_CYRILLIC = str.maketrans("abekmhopctyx", "авекмнорстух")
+
+
+def _group_key(name: str) -> str:
+    """Ключ для сравнения названий групп: без регистра, пробелов, дефисов и точек.
+    "топ106б", "ТОП 106 Б" и "ТОП-106Б" дают один и тот же ключ."""
+    return "".join(ch for ch in name.lower().translate(_LATIN_TO_CYRILLIC) if ch.isalnum())
+
+
 def _load_groups() -> dict[str, int]:
     return json.loads(_GROUPS_PATH.read_text(encoding="utf-8"))
 
@@ -64,13 +75,18 @@ class IsuScheduleRepository:
 
     def __init__(self) -> None:
         self._groups = _load_groups()
+        self._canonical_by_key = {_group_key(name): name for name in self._groups}
+
+    def resolve_group(self, group: str) -> str | None:
+        """Находит группу в справочнике ИСУ, как бы студент её ни написал ("топ106б" -> "ТОП-106Б")."""
+        return self._canonical_by_key.get(_group_key(group))
 
     async def get_day_schedule(self, group: str, date: str) -> DaySchedule | None:
-        normalized_group = group.strip().upper()
-        group_id = self._groups.get(normalized_group)
-        if group_id is None:
-            logger.warning("IsuScheduleRepository: группа не найдена в справочнике: %s", normalized_group)
+        normalized_group = self.resolve_group(group)
+        if normalized_group is None:
+            logger.warning("IsuScheduleRepository: группа не найдена в справочнике: %s", group)
             return None
+        group_id = self._groups[normalized_group]
 
         target_date = dt.date.fromisoformat(date)
         week = _week_number_for_date(target_date)

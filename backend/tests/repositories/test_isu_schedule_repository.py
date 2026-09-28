@@ -42,3 +42,18 @@ async def test_get_day_schedule_returns_none_for_unknown_group() -> None:
     result = await repo.get_day_schedule("НЕ-СУЩЕСТВУЮЩАЯ-ГРУППА", "2026-09-30")
 
     assert result is None
+
+
+def test_resolve_group_ignores_case_and_separators() -> None:
+    repo = IsuScheduleRepository()
+
+    assert repo.resolve_group("ТОП-106Б") == "ТОП-106Б"
+    assert repo.resolve_group("топ106б") == "ТОП-106Б"
+    assert repo.resolve_group("  топ 106 б ") == "ТОП-106Б"
+    # латинские буквы-двойники кириллицы (частая опечатка при смешанной раскладке)
+    assert repo.resolve_group("TOП-106Б") == "ТОП-106Б"
+    assert repo.resolve_group("1-1.1.1.-26а") == "1-1.1.1.-26А"
+
+
+def test_resolve_group_returns_none_for_unknown_group() -> None:
+    assert IsuScheduleRepository().resolve_group("НЕ-СУЩЕСТВУЮЩАЯ-ГРУППА") is None

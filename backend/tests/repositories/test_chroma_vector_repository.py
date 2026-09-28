@@ -66,3 +66,16 @@ def test_delete_removes_all_vectors_for_data_id(fake_chromadb: MagicMock) -> Non
     repo.delete(42)
 
     fake_chromadb.delete.assert_called_once_with(where={"data_id": 42})
+
+
+def test_query_with_scores_converts_distance_and_filters_by_division(fake_chromadb: MagicMock) -> None:
+    fake_chromadb.count.return_value = 3
+    fake_chromadb.query.return_value = {"metadatas": [[{"data_id": 5}]], "distances": [[0.25]]}
+
+    repo = _make_repo()
+    result = repo.query_with_scores([0.1, 0.2], n_results=6, division="iimrt")
+
+    assert result == [(5, 0.75)]
+    fake_chromadb.query.assert_called_once_with(
+        query_embeddings=[[0.1, 0.2]], n_results=3, where={"division": "iimrt"}
+    )

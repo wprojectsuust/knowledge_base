@@ -17,3 +17,15 @@ async def test_analyze_data_by_llm_for_new_data_returns_generated_questions(samp
     use_case = AnalyzeDataByLLMForNewData(fake_llm_service)
 
     assert await use_case.execute(sample_data) == ["где деканат", "как найти деканат"]
+
+
+async def test_analyze_data_for_user_prompt_forbids_off_topic_facts_and_suggests_whom_to_ask(
+    sample_data, fake_llm_service
+) -> None:
+    from src.use_cases.analyze_data import AnalyzeDataByLLMForUser
+
+    await AnalyzeDataByLLMForUser(fake_llm_service).execute("что делать, если пропустил пару?", [sample_data])
+
+    prompt = fake_llm_service.last_prompt.lower()
+    assert "не относ" in prompt  # нерелевантные фрагменты - игнорировать
+    assert "тьютор" in prompt  # куда обратиться, если ответа в базе нет

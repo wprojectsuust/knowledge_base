@@ -42,13 +42,18 @@ class ChromaVectorRepository:
         logger.debug("Chroma query: найдено data_id=%s", found_ids)
         return found_ids
 
-    def query_with_scores(self, embedding: list[float], n_results: int = 6) -> list[tuple[int, float]]:
+    def query_with_scores(
+        self, embedding: list[float], n_results: int = 6, division: str | None = None
+    ) -> list[tuple[int, float]]:
         count = self._collection.count()
-        logger.debug("Chroma query_with_scores: в коллекции %d векторов, n_results=%d", count, n_results)
+        logger.debug(
+            "Chroma query_with_scores: в коллекции %d векторов, n_results=%d, division=%s", count, n_results, division
+        )
         if count == 0:
             return []
 
-        results = self._collection.query(query_embeddings=[embedding], n_results=min(n_results, count))
+        where = {"division": division} if division else None
+        results = self._collection.query(query_embeddings=[embedding], n_results=min(n_results, count), where=where)
         scored = [
             (int(metadata["data_id"]), 1.0 - distance)
             for metadata, distance in zip(results["metadatas"][0], results["distances"][0])

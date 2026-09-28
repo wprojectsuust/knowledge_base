@@ -15,6 +15,12 @@ EMBEDDING_MAX_CONCURRENCY: int = int(os.environ.get("EMBEDDING_MAX_CONCURRENCY",
 # снова дёргать живой сайт ИСУ.
 SCHEDULE_CACHE_TTL_SECONDS: int = int(os.environ.get("SCHEDULE_CACHE_TTL_SECONDS", str(60 * 60)))
 
+# Порог косинусового сходства для обычного поиска по базе знаний: фрагменты ниже него не
+# попадают в контекст LLM - иначе на вопрос без ответа в базе модель пересказывает всё
+# подряд из топ-N. Реальные значения видны в DEBUG-логах SearchDataByListOfStr - по ним
+# и калибровать.
+SEARCH_SIMILARITY_THRESHOLD: float = float(os.environ.get("SEARCH_SIMILARITY_THRESHOLD", "0.5"))
+
 # Порог косинусового сходства для "как добраться до места проведения": ниже этого
 # значения найденный в базе знаний фрагмент не считается достаточно релевантным,
 # чтобы добавлять его в ответ про расписание. Разумный дефолт, требует калибровки

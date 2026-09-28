@@ -17,8 +17,10 @@ class VectorSearchService:
     async def search(self, embedding: list[float], n_results: int = 6, division: str | None = None) -> list[int]:
         return await asyncio.to_thread(self._vector_repository.query, embedding, n_results, division)
 
-    async def search_with_scores(self, embedding: list[float], n_results: int = 6) -> list[tuple[int, float]]:
-        return await asyncio.to_thread(self._vector_repository.query_with_scores, embedding, n_results)
+    async def search_with_scores(
+        self, embedding: list[float], n_results: int = 6, division: str | None = None
+    ) -> list[tuple[int, float]]:
+        return await asyncio.to_thread(self._vector_repository.query_with_scores, embedding, n_results, division)
 
     async def index(self, id_: int, embedding: list[float], division: str | None = None) -> None:
         await asyncio.to_thread(self._vector_repository.add, id_, embedding, division)

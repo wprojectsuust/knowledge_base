@@ -11,7 +11,9 @@ class VectorRepository(Protocol):
     def query(self, embedding: list[float], n_results: int = 6, division: str | None = None) -> list[int]:
         ...
 
-    def query_with_scores(self, embedding: list[float], n_results: int = 6) -> list[tuple[int, float]]:
+    def query_with_scores(
+        self, embedding: list[float], n_results: int = 6, division: str | None = None
+    ) -> list[tuple[int, float]]:
         """Как query(), но возвращает (id, косинусовое сходство) - нужно там, где важен
         порог уверенности, а не только топ-N по релевантности."""
         ...
