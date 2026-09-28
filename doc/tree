@@ -129,8 +129,7 @@
 │   ├── next.config.mjs
 │   ├── package-lock.json
 │   ├── package.json
-│   ├── tsconfig.json
-│   └── tsconfig.tsbuildinfo
+│   └── tsconfig.json
 ├── scripts
 │   └── tree.py
 ├── .env.example
@@ -141,8 +140,8 @@
 
 Строки кода
 ============================================================
-Всего файлов: 106
-Всего строк: 24177
+Всего файлов: 105
+Всего строк: 24184
 
 По расширениям:
   .png                 12018
@@ -150,7 +149,7 @@
   .py                  3728
   .css                 858
   .tsx                 759
-  (без расширения)     301
+  (без расширения)     309
   .html                216
   .md                  200
   .js                  61
@@ -159,4 +158,3 @@
   .yml                 39
   .example             23
   .mjs                 7
-  .tsbuildinfo         1
