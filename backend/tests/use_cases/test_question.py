@@ -1,6 +1,7 @@
 from src.domain.schedule import DaySchedule
 from src.use_cases.analyze_data import AnalyzeDataByLLMForUser
 from src.use_cases.get_really_questions import GetReallyQuestions
+from src.use_cases.analyze_schedule import AnalyzeScheduleForUser
 from src.use_cases.get_schedule import GetSchedule
 from src.use_cases.question import Question
 from src.use_cases.search_data import SearchDataByListOfStr
@@ -28,6 +29,7 @@ def _build_use_case(
         fake_embedding_service,
         fake_vector_search_service,
         fake_data_store_service,
+        AnalyzeScheduleForUser(make_fake_llm_service(answer)),
     )
     return Question(get_really_questions, search_data, analyze_data, fake_question_cache_service, get_schedule)
 
@@ -110,6 +112,7 @@ async def test_question_returns_cached_answer_without_running_pipeline(
         fake_embedding_service,
         fake_vector_search_service,
         fake_data_store_service,
+        AnalyzeScheduleForUser(llm_that_must_not_be_called),
     )
     use_case = Question(get_really_questions, search_data, analyze_data, fake_question_cache_service, get_schedule)
 

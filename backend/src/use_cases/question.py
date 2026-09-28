@@ -49,7 +49,7 @@ class Question:
 
         if isinstance(really_questions_or_schedule, ScheduleRequest):
             return await self._get_schedule.execute(
-                really_questions_or_schedule.group, really_questions_or_schedule.date
+                question, really_questions_or_schedule.group, really_questions_or_schedule.date
             )
 
         really_questions = really_questions_or_schedule

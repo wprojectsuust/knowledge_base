@@ -6,15 +6,17 @@ from src.services.embedding_service import EmbeddingService
 from src.services.schedule_cache_service import ScheduleCacheService
 from src.services.schedule_service import ScheduleService
 from src.services.vector_search_service import VectorSearchService
+from src.use_cases.analyze_schedule import AnalyzeScheduleForUser
 
 logger = logging.getLogger(__name__)
 
 
 class GetSchedule:
-    """Собирает ответ на запрос расписания: тянет день (с кэшем в Postgres, TTL), формирует
-    текст с временем/предметом/местом проведения, и для каждого уникального места проведения
-    ищет в базе знаний "как добраться" - добавляет в ответ, только если нашлось с достаточной
-    уверенностью (порог косинусового сходства, см. config.SCHEDULE_DIRECTIONS_SIMILARITY_THRESHOLD)."""
+    """Собирает ответ на запрос расписания: тянет день (с кэшем в Postgres, TTL), для каждого
+    уникального места проведения ищет в базе знаний "как добраться" (только при достаточной
+    уверенности - см. config.SCHEDULE_DIRECTIONS_SIMILARITY_THRESHOLD), и просит LLM ответить
+    на исходный вопрос пользователя этими фактами - не просто перечислить весь день, если
+    спросили что-то конкретное (см. AnalyzeScheduleForUser)."""
 
     def __init__(
         self,
@@ -23,14 +25,16 @@ class GetSchedule:
         embedding_service: EmbeddingService,
         vector_search_service: VectorSearchService,
         data_store_service: DataStoreService,
+        analyze_schedule: AnalyzeScheduleForUser,
     ) -> None:
         self._schedule_service = schedule_service
         self._schedule_cache_service = schedule_cache_service
         self._embedding_service = embedding_service
         self._vector_search_service = vector_search_service
         self._data_store_service = data_store_service
+        self._analyze_schedule = analyze_schedule
 
-    async def execute(self, group: str, date: str) -> str:
+    async def execute(self, question: str, group: str, date: str) -> str:
         logger.info("GetSchedule: group=%s date=%s", group, date)
 
         day_schedule = await self._schedule_cache_service.get(group, date)
@@ -42,21 +46,17 @@ class GetSchedule:
                 return f"Не удалось найти расписание для группы {group} на {date}."
             await self._schedule_cache_service.save(day_schedule)
 
-        lines = [f"Расписание {day_schedule.group} на {day_schedule.day_label}:"]
         if not day_schedule.lessons:
-            lines.append("Пар нет.")
-        else:
-            for lesson in day_schedule.lessons:
-                venue_part = f" ({lesson.venue})" if lesson.venue else ""
-                lines.append(f"- {lesson.time}: {lesson.subject}{venue_part}")
+            return f"{day_schedule.day_label}: пар нет."
 
         venues = {lesson.venue for lesson in day_schedule.lessons if lesson.venue}
+        directions: dict[str, str] = {}
         for venue in venues:
-            directions = await self._find_directions(venue)
-            if directions:
-                lines.append(f"\nКак добраться до {venue}: {directions}")
+            found = await self._find_directions(venue)
+            if found:
+                directions[venue] = found
 
-        return "\n".join(lines)
+        return await self._analyze_schedule.execute(question, day_schedule, directions)
 
     async def _find_directions(self, venue: str) -> str | None:
         embedding = await self._embedding_service.encode(f"как добраться до {venue}")

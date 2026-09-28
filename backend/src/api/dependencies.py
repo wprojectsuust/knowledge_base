@@ -15,6 +15,7 @@ from src.services.schedule_cache_service import ScheduleCacheService
 from src.services.schedule_service import ScheduleService
 from src.services.vector_search_service import VectorSearchService
 from src.use_cases.analyze_data import AnalyzeDataByLLMForNewData, AnalyzeDataByLLMForUser
+from src.use_cases.analyze_schedule import AnalyzeScheduleForUser
 from src.use_cases.get_really_questions import GetReallyQuestions
 from src.use_cases.get_schedule import GetSchedule
 from src.use_cases.new_data import NewData
@@ -108,6 +109,10 @@ def get_new_data_use_case() -> NewData:
     )
 
 
+def get_analyze_schedule_for_user_use_case() -> AnalyzeScheduleForUser:
+    return AnalyzeScheduleForUser(get_llm_service())
+
+
 def get_get_schedule_use_case() -> GetSchedule:
     return GetSchedule(
         get_schedule_service(),
@@ -115,6 +120,7 @@ def get_get_schedule_use_case() -> GetSchedule:
         get_embedding_service(),
         get_vector_search_service(),
         get_data_store_service(),
+        get_analyze_schedule_for_user_use_case(),
     )
 
 
