@@ -2,18 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { CampusMap } from "@/components/campus/CampusMap";
-import type { Location } from "@/lib/api";
+import type { Location, Route } from "@/lib/api";
 
 type Phase = "hidden" | "corner" | "center" | "mini";
 
 type VenueMapProps = {
-  location: Location;
+  /** что показать: место (корпус/кабинет) или маршрут - маршрут в приоритете */
+  location?: Location | null;
+  route?: Route | null;
   /** Когда true (ответ допечатан) - окно карты выезжает из угла в центр. */
   ready: boolean;
   onDismiss: () => void;
 };
 
-function describe(location: Location) {
+function describe(location: Location | null | undefined, route: Route | null | undefined) {
+  if (route) return [`${route.from_label} → ${route.to_label}`, `≈${Math.round(route.distance_m)} м · ${route.minutes} мин`];
+  if (!location) return ["Карта кампуса"];
   const parts = [`Корпус ${location.building}`];
   if (location.room) parts.push(`кабинет ${location.building}-${location.room}`);
   if (location.floor) parts.push(`${location.floor} этаж`);
@@ -26,7 +30,7 @@ function describe(location: Location) {
  * В углу кампус медленно облетается целиком, в центре камера летит к нужному корпусу и
  * раскрывает этажи (см. CampusScene).
  */
-export function VenueMap({ location, ready, onDismiss }: VenueMapProps) {
+export function VenueMap({ location, route, ready, onDismiss }: VenueMapProps) {
   const [phase, setPhase] = useState<Phase>("hidden");
 
   useEffect(() => {
@@ -48,7 +52,7 @@ export function VenueMap({ location, ready, onDismiss }: VenueMapProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [phase]);
 
-  const [title, ...details] = describe(location);
+  const [title, ...details] = describe(location, route);
   const expanded = phase === "center";
 
   return (
@@ -57,11 +61,11 @@ export function VenueMap({ location, ready, onDismiss }: VenueMapProps) {
       <div
         className={`venue-map phase-${phase}`}
         role={expanded ? "dialog" : "button"}
-        aria-label={`Карта: ${describe(location).join(", ")}`}
+        aria-label={`Карта: ${describe(location, route).join(", ")}`}
         onClick={() => !expanded && setPhase("center")}
       >
         <div className="venue-canvas">
-          {phase !== "hidden" && <CampusMap target={location} focused={expanded} interactive={expanded} />}
+          {phase !== "hidden" && <CampusMap target={location ?? null} route={route ?? null} focused={expanded} interactive={expanded} />}
         </div>
 
         <div className="venue-label">
@@ -69,7 +73,7 @@ export function VenueMap({ location, ready, onDismiss }: VenueMapProps) {
           {details.length > 0 && <p className="venue-details">{details.join(" · ")}</p>}
         </div>
 
-        {expanded && <p className="venue-stub">Расположение корпусов пока примерное · крутите мышью</p>}
+        {expanded && <p className="venue-stub">Кабинеты расставлены приблизительно · крутите мышью</p>}
 
         <button
           type="button"

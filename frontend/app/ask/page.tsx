@@ -7,7 +7,7 @@ import { FactChips } from "@/components/FactChips";
 import { SourcesList } from "@/components/SourcesList";
 import { Typewriter } from "@/components/Typewriter";
 import { VenueMap } from "@/components/VenueMap";
-import { askQuestion, extractSources, stripSourceTags, type Clarification, type Fact, type Location } from "@/lib/api";
+import { askQuestion, extractSources, stripSourceTags, type Clarification, type Fact, type Location, type Route } from "@/lib/api";
 import { useStudentFacts } from "@/lib/useStudentFacts";
 
 const SUGGESTIONS = [
@@ -25,6 +25,7 @@ type Exchange = {
   /** что студент ответил на уточнение - показываем его репликой в ленте */
   clarifiedWith: string | null;
   location: Location | null;
+  route: Route | null;
   error: string | null;
   typed: boolean;
 };
@@ -48,7 +49,7 @@ export default function AskPage() {
     setLoading(true);
     try {
       const result = await askQuestion(text, knownFacts);
-      update(id, { answer: result.answer, clarification: result.clarification, location: result.location });
+      update(id, { answer: result.answer, clarification: result.clarification, location: result.location, route: result.route });
     } catch (error) {
       update(id, { error: error instanceof Error ? error.message : "Не удалось получить ответ." });
     } finally {
@@ -70,6 +71,7 @@ export default function AskPage() {
         clarification: null,
         clarifiedWith: null,
         location: null,
+        route: null,
         error: null,
         typed: false,
       },
@@ -111,7 +113,7 @@ export default function AskPage() {
 
   // карту показываем только для самого свежего ответа, если в нём есть место
   const last = exchanges[exchanges.length - 1];
-  const lastWithLocation = last?.location ? last : null;
+  const lastWithLocation = last?.location || last?.route ? last : null;
 
   if (exchanges.length === 0) {
     return (
@@ -203,9 +205,10 @@ export default function AskPage() {
       {lastWithLocation && (
         <VenueMap
           key={lastWithLocation.id}
-          location={lastWithLocation.location!}
+          location={lastWithLocation.location}
+          route={lastWithLocation.route}
           ready={lastWithLocation.typed}
-          onDismiss={() => update(lastWithLocation.id, { location: null })}
+          onDismiss={() => update(lastWithLocation.id, { location: null, route: null })}
         />
       )}
     </section>

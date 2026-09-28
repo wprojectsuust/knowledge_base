@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 export type Location = {
   building: string;
@@ -16,11 +16,31 @@ export type Fact = {
   value: string;
 };
 
-/** Ровно одно из answer / clarification не null. */
+export type RoutePoint = {
+  x: number;
+  y: number;
+  /** 0 - улица */
+  floor: number;
+  building: string | null;
+};
+
+export type Route = {
+  campus: string;
+  from_label: string;
+  to_label: string;
+  steps: string[];
+  text: string;
+  distance_m: number;
+  minutes: number;
+  points: RoutePoint[];
+};
+
+/** Ровно одно из answer / clarification не null. route - если спросили «как пройти». */
 export type AskQuestionResponse = {
   answer: string | null;
   clarification: Clarification | null;
   location: Location | null;
+  route: Route | null;
 };
 
 export async function askQuestion(question: string, facts: Fact[] = []): Promise<AskQuestionResponse> {
@@ -40,6 +60,7 @@ export async function askQuestion(question: string, facts: Fact[] = []): Promise
     answer: data.answer ?? null,
     clarification: data.clarification ?? null,
     location: data.location ?? null,
+    route: data.route ?? null,
   };
 }
 
@@ -55,4 +76,18 @@ export function extractSources(answer: string): string[] {
 
 export function stripSourceTags(answer: string): string {
   return answer.replace(SOURCE_PATTERN, "").replace(/[ \t]+\n/g, "\n").trim();
+}
+
+/** Маршрут по кампусу: откуда (по умолчанию КПП) и куда - "7-404", "7", "7@3", "kpp", "place:library". */
+export async function buildRoute(source: string | null, target: string): Promise<Route> {
+  const response = await fetch(`${API_BASE_URL}/route`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ source, target }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.detail ?? `Сервер ответил ${response.status}`);
+  }
+  return response.json();
 }

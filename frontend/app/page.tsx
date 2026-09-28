@@ -23,7 +23,7 @@ import { ClarificationPrompt } from "@/components/ClarificationPrompt";
 import { FactChips } from "@/components/FactChips";
 import { Typewriter } from "@/components/Typewriter";
 import { VenueMap } from "@/components/VenueMap";
-import { askQuestion, extractSources, stripSourceTags, type Clarification, type Fact, type Location } from "@/lib/api";
+import { askQuestion, extractSources, stripSourceTags, type Clarification, type Fact, type Location, type Route } from "@/lib/api";
 import { useStudentFacts } from "@/lib/useStudentFacts";
 
 const POPULAR_QUESTIONS = [
@@ -76,6 +76,7 @@ export default function HomePage() {
   const [askedQuestion, setAskedQuestion] = useState<string | null>(null);
   const [answer, setAnswer] = useState<string | null>(null);
   const [location, setLocation] = useState<Location | null>(null);
+  const [route, setRoute] = useState<Route | null>(null);
   const [typed, setTyped] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -94,6 +95,7 @@ export default function HomePage() {
     setErrorMessage(null);
     setAnswer(null);
     setLocation(null);
+    setRoute(null);
     setTyped(false);
     setAskedQuestion(trimmed);
 
@@ -102,6 +104,7 @@ export default function HomePage() {
       setClarification(result.clarification);
       setAnswer(result.answer);
       setLocation(result.location);
+      setRoute(result.route);
       setStatus("idle");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Не удалось получить ответ.");
@@ -122,6 +125,7 @@ export default function HomePage() {
   }
 
   function reset() {
+    setRoute(null);
     setClarification(null);
     setClarifiedWith(null);
     setAnswer(null);
@@ -284,8 +288,17 @@ export default function HomePage() {
         </div>
       </section>
 
-      {location && answer && (
-        <VenueMap key={answer} location={location} ready={typed} onDismiss={() => setLocation(null)} />
+      {(location || route) && answer && (
+        <VenueMap
+          key={answer}
+          location={location}
+          route={route}
+          ready={typed}
+          onDismiss={() => {
+            setLocation(null);
+            setRoute(null);
+          }}
+        />
       )}
     </>
   );
