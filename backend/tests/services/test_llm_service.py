@@ -110,3 +110,22 @@ def test_gemini_provider_falls_back_to_next_model_when_first_is_overloaded(fake_
 
     assert provider.generate("вопрос") == "ответ"
     assert [call.kwargs["model"] for call in fake_openai.call_args_list] == ["busy-model", "free-model"]
+
+
+def test_gemini_provider_stops_trying_models_when_time_budget_is_spent(fake_openai: MagicMock, monkeypatch) -> None:
+    import pytest
+
+    from src import config
+    from src.services import llm_service
+    from src.services.llm_service import LLMUnavailableError
+
+    clock = iter([0.0, config.LLM_TOTAL_BUDGET_SECONDS + 1, config.LLM_TOTAL_BUDGET_SECONDS + 2])
+    monkeypatch.setattr(llm_service.time, "monotonic", lambda: next(clock))
+    fake_openai.side_effect = RuntimeError("timeout")
+
+    provider = GeminiProvider(api_key="key", model="slow-model, other-model, third-model")
+
+    with pytest.raises(LLMUnavailableError):
+        provider.generate("вопрос")
+    # после первой модели бюджет исчерпан - остальные не трогаем, студент не ждёт минутами
+    assert [call.kwargs["model"] for call in fake_openai.call_args_list] == ["slow-model"]

@@ -36,6 +36,11 @@ class GetSchedule:
 
     async def execute(self, question: str, group: str, date: str) -> str:
         logger.info("GetSchedule: group=%s date=%s", group, date)
+        # один ключ для кэша, как бы студент ни написал группу («топ106б» == «ТОП-106Б»)
+        canonical = await self._schedule_service.resolve_group(group)
+        if canonical is None:
+            return f"Не нашёл группу {group} в справочнике ИСУ. Проверьте название, например ТОП-106Б."
+        group = canonical
 
         day_schedule = await self._schedule_cache_service.get(group, date)
         if day_schedule is not None:

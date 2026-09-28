@@ -54,3 +54,19 @@ def test_detect_division_prefers_longer_keyword_match() -> None:
 
 def test_detect_division_returns_none_when_nothing_matches() -> None:
     assert detect_division("когда стипендия") is None
+
+
+def test_short_abbreviations_do_not_match_inside_ordinary_words() -> None:
+    from src.domain.division import detect_division
+
+    # раньше «испо» находилось в «использовать», «пиш» в «напишите», «итм» в «алгоритм»
+    assert detect_division("как использовать электронную библиотеку") is None
+    assert detect_division("напишите, куда обращаться") is None
+    assert detect_division("где проходит курс по алгоритмам") is None
+
+
+def test_abbreviation_still_matches_as_a_separate_word() -> None:
+    from src.domain.division import detect_division
+
+    assert detect_division("институт ИТМ где находится").slug == "itm"
+    assert detect_division("деканат ФИРТ,") is not None

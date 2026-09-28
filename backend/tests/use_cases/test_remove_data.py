@@ -11,3 +11,16 @@ async def test_remove_data_by_id_clears_both_stores(
     assert await use_case.execute(sample_data.id) is True
     assert await fake_data_store_service.get(sample_data.id) is None
     assert sample_data.id not in fake_vector_search_service.index_calls
+
+
+async def test_remove_data_invalidates_question_cache(
+    fake_data_store_service, fake_vector_search_service, fake_question_cache_service
+) -> None:
+    fake_question_cache_service.store["где деканат"] = "Ответ по удалённому документу."
+    use_case = RemoveDataById(
+        fake_data_store_service, fake_vector_search_service, question_cache_service=fake_question_cache_service
+    )
+
+    await use_case.execute(1)
+
+    assert fake_question_cache_service.store == {}

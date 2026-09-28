@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from typing import Protocol
 
 from src import config
@@ -52,7 +53,8 @@ class GeminiProvider:
         import httpx
         from openai import OpenAI
 
-        http_client = httpx.Client(proxy=proxy_url, timeout=45.0) if proxy_url else httpx.Client(timeout=45.0)
+        timeout = config.LLM_TIMEOUT_SECONDS
+        http_client = httpx.Client(proxy=proxy_url, timeout=timeout) if proxy_url else httpx.Client(timeout=timeout)
         self._client = OpenAI(
             api_key=api_key,
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
@@ -68,7 +70,12 @@ class GeminiProvider:
 
     def generate(self, prompt: str) -> str:
         last_error: Exception | None = None
+        started = time.monotonic()
         for model in self._models:
+            # бюджет ограничивает только переход на запасные модели - первую пробуем всегда
+            if last_error is not None and time.monotonic() - started > config.LLM_TOTAL_BUDGET_SECONDS:
+                logger.warning("Gemini: бюджет %.0f с исчерпан, запасные модели не пробую", config.LLM_TOTAL_BUDGET_SECONDS)
+                break
             logger.debug("Gemini запрос: model=%s prompt=%s", model, preview(prompt))
             try:
                 response = self._client.chat.completions.create(

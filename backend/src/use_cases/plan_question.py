@@ -1,7 +1,9 @@
 import json
 import logging
 import re
-from datetime import date
+from datetime import datetime
+
+from src import config
 
 from src.domain.clarification import ClarificationRequest
 from src.domain.dialog import DialogTurn, format_history
@@ -70,7 +72,7 @@ class PlanQuestion:
             "об учёбе, документах, подразделениях, правилах.\n"
             '- "schedule": {"group": "<группа>", "date": "YYYY-MM-DD", "question": "<что именно спросили '
             'про расписание>"} - расписание КОНКРЕТНОЙ группы на КОНКРЕТНУЮ дату.\n'
-            f"  Сегодня {date.today().isoformat()}. Относительные даты ('завтра', день недели) переводи в "
+            f"  Сегодня {datetime.now(config.LOCAL_TZ).date().isoformat()}. Относительные даты ('завтра', день недели) переводи в "
             "абсолютные. Группу приводи к формату ИСУ: заглавные буквы, дефис между буквами и цифрами "
             "('топ106б' -> ТОП-106Б).\n"
             '- "route": {"from": "<откуда или null - тогда от КПП>", "to": "<куда>"} - если спрашивают, '

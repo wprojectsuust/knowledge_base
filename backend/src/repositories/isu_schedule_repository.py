@@ -77,12 +77,12 @@ class IsuScheduleRepository:
         self._groups = _load_groups()
         self._canonical_by_key = {_group_key(name): name for name in self._groups}
 
-    def resolve_group(self, group: str) -> str | None:
+    async def resolve_group(self, group: str) -> str | None:
         """Находит группу в справочнике ИСУ, как бы студент её ни написал ("топ106б" -> "ТОП-106Б")."""
         return self._canonical_by_key.get(_group_key(group))
 
     async def get_day_schedule(self, group: str, date: str) -> DaySchedule | None:
-        normalized_group = self.resolve_group(group)
+        normalized_group = await self.resolve_group(group)
         if normalized_group is None:
             logger.warning("IsuScheduleRepository: группа не найдена в справочнике: %s", group)
             return None
@@ -97,6 +97,10 @@ class IsuScheduleRepository:
             return None
 
         schedule_by_day = self._extract_schedule_data(html)
+        if not schedule_by_day:
+            # страница ошибки или сменилась вёрстка - иначе студент получил бы ложное «пар нет»
+            logger.warning("IsuScheduleRepository: на странице ИСУ не нашлось таблицы расписания")
+            return None
         target_date_str = target_date.strftime("%d.%m.%Y")
         day_label = next((day for day in schedule_by_day if target_date_str in day), None)
         if day_label is None:

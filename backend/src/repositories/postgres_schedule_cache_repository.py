@@ -71,7 +71,7 @@ class PostgresScheduleCacheRepository:
             import asyncpg
 
             logger.debug("ScheduleCache: создаю пул подключений")
-            self._pool = await asyncpg.create_pool(self._dsn)
+            self._pool = await asyncpg.create_pool(self._dsn, min_size=1, max_size=10)
             await self._pool.execute(_CREATE_TABLE_SQL)
             logger.debug("ScheduleCache: таблица schedule_cache готова")
         return self._pool

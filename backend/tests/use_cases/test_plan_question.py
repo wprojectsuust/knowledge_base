@@ -90,3 +90,22 @@ async def test_prompt_includes_dialog_history_for_follow_ups(fake_llm_service) -
     await PlanQuestion(fake_llm_service).execute("а как туда пройти?", history=history)
 
     assert "Деканат ФИРТ в корпусе 2" in fake_llm_service.last_prompt
+
+
+async def test_today_is_taken_in_ufa_timezone(fake_llm_service, monkeypatch) -> None:
+    import datetime as dt
+
+    from src.use_cases import plan_question
+
+    class _FixedDatetime(dt.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            # 22:00 UTC 29 сентября = 03:00 30 сентября в Уфе (UTC+5)
+            return dt.datetime(2026, 9, 29, 22, 0, tzinfo=dt.timezone.utc).astimezone(tz)
+
+    monkeypatch.setattr(plan_question, "datetime", _FixedDatetime)
+    fake_llm_service.response = _plan()
+
+    await PlanQuestion(fake_llm_service).execute("какие у меня завтра пары")
+
+    assert "Сегодня 2026-09-30" in fake_llm_service.last_prompt

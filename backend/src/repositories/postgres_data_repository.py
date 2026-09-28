@@ -40,7 +40,7 @@ class PostgresDataRepository:
             import asyncpg
 
             logger.debug("PostgreSQL: создаю пул подключений")
-            self._pool = await asyncpg.create_pool(self._dsn)
+            self._pool = await asyncpg.create_pool(self._dsn, min_size=1, max_size=10)
             await self._pool.execute(_CREATE_TABLE_SQL)
             await self._pool.execute(_ADD_DIVISION_COLUMN_SQL)
             logger.debug("PostgreSQL: таблица documents готова")

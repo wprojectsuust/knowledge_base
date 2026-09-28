@@ -42,3 +42,22 @@ async def test_new_data_passes_division_to_vector_index(
     new_id = await use_case.execute(document_with_division)
 
     assert fake_vector_search_service.divisions[new_id] == "iimrt"
+
+
+async def test_new_data_invalidates_question_cache(
+    sample_data, fake_llm_service, fake_embedding_service, fake_vector_search_service, fake_data_store_service, fake_question_cache_service
+) -> None:
+    # иначе закэшированное «в базе этого нет» переживёт загрузку нужного документа
+    fake_question_cache_service.store["где деканат"] = "В базе этого нет."
+    fake_llm_service.response = '["где деканат"]'
+    use_case = NewData(
+        AnalyzeDataByLLMForNewData(fake_llm_service),
+        fake_embedding_service,
+        fake_vector_search_service,
+        fake_data_store_service,
+        question_cache_service=fake_question_cache_service,
+    )
+
+    await use_case.execute(sample_data)
+
+    assert fake_question_cache_service.store == {}

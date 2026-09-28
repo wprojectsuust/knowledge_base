@@ -123,6 +123,9 @@ class FakeQuestionCacheService:
     async def save(self, question: str, answer: str) -> None:
         self.store[question] = answer
 
+    async def clear(self) -> None:
+        self.store.clear()
+
 
 @pytest.fixture
 def fake_question_cache_service() -> FakeQuestionCacheService:
@@ -132,7 +135,11 @@ def fake_question_cache_service() -> FakeQuestionCacheService:
 class FakeScheduleService:
     def __init__(self) -> None:
         self.schedules: dict[tuple[str, str], object] = {}
+        self.aliases: dict[str, str] = {}  # как студент написал группу -> как она в справочнике
         self.call_count = 0
+
+    async def resolve_group(self, group: str) -> str | None:
+        return self.aliases.get(group, group)
 
     async def get_day_schedule(self, group: str, date: str):
         self.call_count += 1

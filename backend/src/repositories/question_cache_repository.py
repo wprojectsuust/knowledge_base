@@ -15,3 +15,7 @@ class QuestionCacheRepository(Protocol):
 
     async def save(self, question: str, answer: str) -> None:
         ...
+
+    async def clear(self) -> None:
+        """Сбрасывает весь кэш - при изменении базы знаний старые ответы могут устареть."""
+        ...

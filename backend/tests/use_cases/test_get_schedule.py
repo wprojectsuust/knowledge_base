@@ -125,3 +125,18 @@ async def test_skips_directions_when_similarity_below_threshold(
     await use_case.execute(question, "1-1.1.1.-26А", "2026-09-30")
 
     assert "Как добраться" not in fake_llm_service.last_prompt
+
+
+async def test_uses_canonical_group_name_for_cache_and_lookup(
+    fake_llm_service, fake_schedule_service, fake_schedule_cache_service, fake_embedding_service, fake_vector_search_service, fake_data_store_service
+) -> None:
+    # студент написал «топ106б», в справочнике «ТОП-106Б» - кэш должен попадать по одному ключу
+    fake_schedule_service.aliases["топ106б"] = "ТОП-106Б"
+    fake_schedule_cache_service.store[("ТОП-106Б", "2026-09-30")] = sample_schedule
+    use_case = _build_use_case(
+        fake_llm_service, fake_schedule_service, fake_schedule_cache_service, fake_embedding_service, fake_vector_search_service, fake_data_store_service
+    )
+
+    await use_case.execute(question, "топ106б", "2026-09-30")
+
+    assert fake_schedule_service.call_count == 0

@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
@@ -212,13 +213,21 @@ def _build_division_keywords() -> dict[str, UustDivision]:
 DIVISION_KEYWORDS: dict[str, UustDivision] = _build_division_keywords()
 
 
+_SHORT_KEYWORD_MAX_LEN = 5
+
+
 def detect_division(text: str) -> UustDivision | None:
     """Ищет в тексте упоминание Division по ключевым словам/аббревиатурам (регистронезависимо).
     Проверяет более длинные ключевые слова первыми, чтобы более специфичное совпадение
     не терялось за более коротким (например 'иимрт' не должно перекрываться 'имрт')."""
     lowered = text.lower()
     for keyword in sorted(DIVISION_KEYWORDS, key=len, reverse=True):
-        if keyword in lowered:
+        if _SHORT_KEYWORD_MAX_LEN >= len(keyword):
+            # короткие аббревиатуры - только отдельным словом: иначе «испо» находится
+            # в «использовать», «пиш» в «напишите», «итм» в «алгоритм»
+            if re.search(rf"(?<![\wё]){re.escape(keyword)}(?![\wё])", lowered):
+                return DIVISION_KEYWORDS[keyword]
+        elif keyword in lowered:
             return DIVISION_KEYWORDS[keyword]
     return None
 

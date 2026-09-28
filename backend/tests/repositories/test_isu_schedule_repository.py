@@ -44,16 +44,28 @@ async def test_get_day_schedule_returns_none_for_unknown_group() -> None:
     assert result is None
 
 
-def test_resolve_group_ignores_case_and_separators() -> None:
+async def test_resolve_group_ignores_case_and_separators() -> None:
     repo = IsuScheduleRepository()
 
-    assert repo.resolve_group("ТОП-106Б") == "ТОП-106Б"
-    assert repo.resolve_group("топ106б") == "ТОП-106Б"
-    assert repo.resolve_group("  топ 106 б ") == "ТОП-106Б"
+    assert await repo.resolve_group("ТОП-106Б") == "ТОП-106Б"
+    assert await repo.resolve_group("топ106б") == "ТОП-106Б"
+    assert await repo.resolve_group("  топ 106 б ") == "ТОП-106Б"
     # латинские буквы-двойники кириллицы (частая опечатка при смешанной раскладке)
-    assert repo.resolve_group("TOП-106Б") == "ТОП-106Б"
-    assert repo.resolve_group("1-1.1.1.-26а") == "1-1.1.1.-26А"
+    assert await repo.resolve_group("TOП-106Б") == "ТОП-106Б"
+    assert await repo.resolve_group("1-1.1.1.-26а") == "1-1.1.1.-26А"
 
 
-def test_resolve_group_returns_none_for_unknown_group() -> None:
-    assert IsuScheduleRepository().resolve_group("НЕ-СУЩЕСТВУЮЩАЯ-ГРУППА") is None
+async def test_resolve_group_returns_none_for_unknown_group() -> None:
+    assert await IsuScheduleRepository().resolve_group("НЕ-СУЩЕСТВУЮЩАЯ-ГРУППА") is None
+
+
+async def test_get_day_schedule_returns_none_when_isu_page_has_no_schedule(monkeypatch) -> None:
+    # страница ошибки / сменили вёрстку - это «не удалось получить», а не «пар нет»
+    repo = IsuScheduleRepository()
+
+    async def fake_fetch(group_id: int, week: int) -> str:
+        return "<html><body>Сервис временно недоступен</body></html>"
+
+    monkeypatch.setattr(repo, "_fetch_html", fake_fetch)
+
+    assert await repo.get_day_schedule("ТОП-106Б", "2026-09-30") is None

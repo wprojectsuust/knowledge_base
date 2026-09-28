@@ -17,3 +17,6 @@ class QuestionCacheService:
 
     async def save(self, question: str, answer: str) -> None:
         await self._repository.save(question, answer)
+
+    async def clear(self) -> None:
+        await self._repository.clear()

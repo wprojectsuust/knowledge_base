@@ -102,7 +102,9 @@ def get_search_data_by_id_use_case() -> SearchDataById:
 
 
 def get_remove_data_use_case() -> RemoveDataById:
-    return RemoveDataById(get_data_store_service(), get_vector_search_service())
+    return RemoveDataById(
+        get_data_store_service(), get_vector_search_service(), question_cache_service=get_question_cache_service()
+    )
 
 
 def get_analyze_data_for_user_use_case() -> AnalyzeDataByLLMForUser:
@@ -119,6 +121,7 @@ def get_new_data_use_case() -> NewData:
         get_embedding_service(),
         get_vector_search_service(),
         get_data_store_service(),
+        question_cache_service=get_question_cache_service(),
     )
 
 
