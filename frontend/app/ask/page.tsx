@@ -7,7 +7,17 @@ import { FactChips } from "@/components/FactChips";
 import { SourcesList } from "@/components/SourcesList";
 import { Typewriter } from "@/components/Typewriter";
 import { VenueMap } from "@/components/VenueMap";
-import { askQuestion, extractSources, stripSourceTags, type Clarification, type Fact, type Location, type Route } from "@/lib/api";
+import {
+  askQuestion,
+  extractSources,
+  stripSourceTags,
+  type Clarification,
+  type Fact,
+  type HistoryTurn,
+  type Location,
+  type Route,
+} from "@/lib/api";
+import { clearChat, loadChat, saveChat } from "@/lib/chatStorage";
 import { useStudentFacts } from "@/lib/useStudentFacts";
 
 const SUGGESTIONS = [
@@ -28,7 +38,19 @@ type Exchange = {
   route: Route | null;
   error: string | null;
   typed: boolean;
+  /** восстановлена из прошлого визита - показываем сразу, без печати и без карты */
+  restored: boolean;
 };
+
+const HISTORY_TURNS = 6;
+
+/** Последние завершённые реплики - контекст для «а туда как пройти?». */
+function historyOf(exchanges: Exchange[], exceptId?: number): HistoryTurn[] {
+  return exchanges
+    .filter((item) => item.answer && item.id !== exceptId)
+    .slice(-HISTORY_TURNS)
+    .map((item) => ({ question: item.question, answer: stripSourceTags(item.answer!) }));
+}
 
 export default function AskPage() {
   const [question, setQuestion] = useState("");
@@ -36,6 +58,41 @@ export default function AskPage() {
   const [loading, setLoading] = useState(false);
   const threadEndRef = useRef<HTMLDivElement>(null);
   const { facts, remember, forget } = useStudentFacts();
+  const [chatLoaded, setChatLoaded] = useState(false);
+
+  useEffect(() => {
+    setExchanges(
+      loadChat().map((item) => ({
+        ...item,
+        // ответ так и не пришёл (закрыли вкладку во время запроса)
+        error: item.answer || item.clarification || item.error ? item.error : "Ответ не был получен — спросите ещё раз.",
+        location: null,
+        route: null,
+        typed: true,
+        restored: true,
+      })),
+    );
+    setChatLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!chatLoaded) return;
+    saveChat(
+      exchanges.map(({ id, question, answer, clarification, clarifiedWith, error }) => ({
+        id,
+        question,
+        answer,
+        clarification,
+        clarifiedWith,
+        error,
+      })),
+    );
+  }, [exchanges, chatLoaded]);
+
+  function newChat() {
+    clearChat();
+    setExchanges([]);
+  }
 
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -45,10 +102,10 @@ export default function AskPage() {
     setExchanges((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
   }
 
-  async function run(id: number, text: string, knownFacts: Fact[]) {
+  async function run(id: number, text: string, knownFacts: Fact[], history: HistoryTurn[]) {
     setLoading(true);
     try {
-      const result = await askQuestion(text, knownFacts);
+      const result = await askQuestion(text, knownFacts, history);
       update(id, { answer: result.answer, clarification: result.clarification, location: result.location, route: result.route });
     } catch (error) {
       update(id, { error: error instanceof Error ? error.message : "Не удалось получить ответ." });
@@ -74,10 +131,11 @@ export default function AskPage() {
         route: null,
         error: null,
         typed: false,
+        restored: false,
       },
     ]);
     setQuestion("");
-    void run(id, trimmed, facts);
+    void run(id, trimmed, facts, historyOf(exchanges));
   }
 
   function answerClarification(item: Exchange, value: string) {
@@ -85,7 +143,7 @@ export default function AskPage() {
     const nextFacts = remember({ field: item.clarification.field, value });
     update(item.id, { clarification: null, clarifiedWith: value });
     // тот же исходный вопрос, но уже с новым сведением о студенте
-    void run(item.id, item.question, nextFacts);
+    void run(item.id, item.question, nextFacts, historyOf(exchanges, item.id));
   }
 
   const searchForm = (
@@ -113,7 +171,7 @@ export default function AskPage() {
 
   // карту показываем только для самого свежего ответа, если в нём есть место
   const last = exchanges[exchanges.length - 1];
-  const lastWithLocation = last?.location || last?.route ? last : null;
+  const lastWithLocation = !last?.restored && (last?.location || last?.route) ? last : null;
 
   if (exchanges.length === 0) {
     return (
@@ -143,6 +201,12 @@ export default function AskPage() {
 
   return (
     <section className="ask-chat">
+      <div className="ask-chat-head">
+        <span className="ask-chat-note">Чат хранится только в этом браузере</span>
+        <button type="button" className="chip" onClick={newChat} disabled={loading}>
+          Новый чат
+        </button>
+      </div>
       <div className="ask-thread">
         {exchanges.map((item) => {
           const done = item.answer !== null || item.error !== null || item.clarification !== null;
@@ -182,11 +246,15 @@ export default function AskPage() {
                 {item.error && <p className="answer-text error-text">{item.error}</p>}
                 {item.answer !== null && (
                   <>
-                    <Typewriter
-                      className="answer-text"
-                      text={stripSourceTags(item.answer)}
-                      onDone={() => update(item.id, { typed: true })}
-                    />
+                    {item.restored ? (
+                      <p className="answer-text">{stripSourceTags(item.answer)}</p>
+                    ) : (
+                      <Typewriter
+                        className="answer-text"
+                        text={stripSourceTags(item.answer)}
+                        onDone={() => update(item.id, { typed: true })}
+                      />
+                    )}
                     <SourcesList sources={extractSources(item.answer)} />
                   </>
                 )}

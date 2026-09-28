@@ -43,11 +43,21 @@ export type AskQuestionResponse = {
   route: Route | null;
 };
 
-export async function askQuestion(question: string, facts: Fact[] = []): Promise<AskQuestionResponse> {
+/** Реплика чата для контекста («а туда как пройти?»). */
+export type HistoryTurn = {
+  question: string;
+  answer: string;
+};
+
+export async function askQuestion(
+  question: string,
+  facts: Fact[] = [],
+  history: HistoryTurn[] = [],
+): Promise<AskQuestionResponse> {
   const response = await fetch(`${API_BASE_URL}/question`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question, facts: facts.map(({ field, value }) => ({ field, value })) }),
+    body: JSON.stringify({ question, facts: facts.map(({ field, value }) => ({ field, value })), history }),
   });
 
   if (!response.ok) {

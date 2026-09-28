@@ -1193,7 +1193,20 @@ input {
   min-height: calc(100vh - 64px);
   display: flex;
   flex-direction: column;
-  padding-top: 40px;
+  padding-top: 8px;
+}
+
+.ask-chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.ask-chat-note {
+  font-size: 12px;
+  color: var(--muted-2);
 }
 
 .ask-thread {
