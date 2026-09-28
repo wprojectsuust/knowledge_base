@@ -19,9 +19,9 @@ from src.services.vector_search_service import VectorSearchService
 from src.use_cases.analyze_data import AnalyzeDataByLLMForNewData, AnalyzeDataByLLMForUser
 from src.use_cases.analyze_schedule import AnalyzeScheduleForUser
 from src.use_cases.build_route import BuildRoute
-from src.use_cases.get_really_questions import GetReallyQuestions
 from src.use_cases.get_schedule import GetSchedule
 from src.use_cases.new_data import NewData
+from src.use_cases.plan_question import PlanQuestion
 from src.use_cases.question import Question
 from src.use_cases.remove_data import RemoveDataById
 from src.use_cases.resolve_location import ResolveLocation
@@ -85,8 +85,8 @@ def get_build_route_use_case() -> BuildRoute:
     return BuildRoute(get_campus_service())
 
 
-def get_get_really_questions_use_case() -> GetReallyQuestions:
-    return GetReallyQuestions(get_llm_service(), places_hint=get_campus_service().places_hint())
+def get_plan_question_use_case() -> PlanQuestion:
+    return PlanQuestion(get_llm_service(), places_hint=get_campus_service().places_hint())
 
 
 def get_search_data_use_case() -> SearchDataByListOfStr:
@@ -139,7 +139,7 @@ def get_get_schedule_use_case() -> GetSchedule:
 
 def get_question_use_case() -> Question:
     return Question(
-        get_get_really_questions_use_case(),
+        get_plan_question_use_case(),
         get_search_data_use_case(),
         get_analyze_data_for_user_use_case(),
         get_question_cache_service(),

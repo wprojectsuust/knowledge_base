@@ -6,8 +6,15 @@ class FactIn(BaseModel):
     value: str = Field(min_length=1, max_length=200)
 
 
+class HistoryTurnIn(BaseModel):
+    question: str = Field(max_length=2000)
+    answer: str = Field(max_length=6000)
+
+
 class QuestionRequest(BaseModel):
-    question: str
+    question: str = Field(min_length=1, max_length=2000)
+    # последние реплики чата - хранятся только в браузере, сервер их нигде не сохраняет
+    history: list[HistoryTurnIn] = Field(default_factory=list, max_length=10)
     # уже известные сведения о студенте (ответы на прошлые уточнения), фронт хранит их у себя
     facts: list[FactIn] = Field(default_factory=list, max_length=10)
 

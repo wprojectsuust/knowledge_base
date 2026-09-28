@@ -1,43 +1,46 @@
+import asyncio
 import logging
 
+from src.domain.answer import Answer
 from src.domain.clarification import ClarificationRequest, KnownFact, compose_question
-from src.domain.campus import Route
+from src.domain.dialog import DialogTurn
 from src.domain.division import detect_division
+from src.domain.plan import QuestionPlan, SearchTask
 from src.domain.route import RouteRequest
 from src.domain.schedule import ScheduleRequest
 from src.services.question_cache_service import QuestionCacheService
 from src.use_cases.analyze_data import AnalyzeDataByLLMForUser
 from src.use_cases.build_route import BuildRoute
-from src.use_cases.get_really_questions import GetReallyQuestions
 from src.use_cases.get_schedule import GetSchedule
+from src.use_cases.plan_question import PlanQuestion
 from src.use_cases.search_data import SearchDataByListOfStr
 
 logger = logging.getLogger(__name__)
 
 
 class Question:
-    """Входная точка, оркестратор подзадач. Кэширует вопрос-ответ в Postgres, чтобы
-    не тратить токены LLM и CPU на эмбеддинг повторно на одинаковые вопросы.
+    """Входная точка, оркестратор подзадач.
 
-    Запросы расписания (group+date) не попадают в этот кэш - дата может быть выражена
-    относительно ("завтра"), и тот же текст завтра будет значить другой день. У расписания
-    свой кэш с TTL (ScheduleCacheService), этого достаточно.
+    Сообщение разбирается в план (PlanQuestion): поиск по базе знаний, расписание, маршрут -
+    в любом сочетании. Части выполняются ПАРАЛЛЕЛЬНО, ответы склеиваются в один. Если для
+    ответа не хватает сведений о студенте, возвращается ClarificationRequest - фронт спрашивает
+    и присылает тот же вопрос с facts (они склеиваются с вопросом в один текст).
 
-    Если для ответа не хватает сведений о студенте (например, группы), возвращается
-    ClarificationRequest - фронт спрашивает студента и присылает тот же вопрос с facts.
-    Уточнения не кэшируются. Известные facts склеиваются с вопросом в один текст, поэтому
-    кэш ключуется и по ним тоже."""
+    Кэш вопрос-ответ в Postgres - только для чистого поиска по базе знаний без истории чата:
+    - расписание может быть относительным («завтра»), у него свой кэш с TTL;
+    - маршрут строится мгновенно и детерминированно;
+    - с историей тот же текст («а туда как пройти?») значит разное."""
 
     def __init__(
         self,
-        get_really_questions: GetReallyQuestions,
+        plan_question: PlanQuestion,
         search_data: SearchDataByListOfStr,
         analyze_data: AnalyzeDataByLLMForUser,
         question_cache_service: QuestionCacheService,
         get_schedule: GetSchedule,
         build_route: BuildRoute | None = None,
     ) -> None:
-        self._get_really_questions = get_really_questions
+        self._plan_question = plan_question
         self._search_data = search_data
         self._analyze_data = analyze_data
         self._question_cache_service = question_cache_service
@@ -48,50 +51,71 @@ class Question:
     def _cache_key(question: str) -> str:
         return question.strip().lower()
 
-    async def execute(self, question: str, facts: list[KnownFact] | None = None) -> str | ClarificationRequest | Route:
+    async def execute(
+        self, question: str, facts: list[KnownFact] | None = None, history: list[DialogTurn] | None = None
+    ) -> Answer | ClarificationRequest:
         facts = facts or []
+        history = history or []
         question = compose_question(question, facts)
         cache_key = self._cache_key(question)
-        cached_answer = await self._question_cache_service.get(cache_key)
-        if cached_answer is not None:
-            logger.info("Question: кэш-хит для вопроса=%s", question)
-            return cached_answer
 
-        logger.info("Question: получен вопрос=%s", question)
-        really_questions_or_schedule = await self._get_really_questions.execute(question)
+        if not history:
+            cached_answer = await self._question_cache_service.get(cache_key)
+            if cached_answer is not None:
+                logger.info("Question: кэш-хит для вопроса=%s", question)
+                return Answer(text=cached_answer)
 
-        if isinstance(really_questions_or_schedule, ClarificationRequest):
-            if really_questions_or_schedule.field not in {fact.field for fact in facts}:
-                return really_questions_or_schedule
-            # LLM переспрашивает уже известное - не зацикливаемся, ищем по исходному тексту
-            logger.warning("Question: повторное уточнение поля %s, игнорирую", really_questions_or_schedule.field)
-            really_questions_or_schedule = [question]
+        logger.info("Question: получен вопрос=%s (реплик в истории: %d)", question, len(history))
+        plan = await self._plan_question.execute(question, history=history)
 
-        if isinstance(really_questions_or_schedule, RouteRequest):
-            request = really_questions_or_schedule
-            route = await self._build_route.execute(request.source, request.target) if self._build_route else None
-            if route is None:
-                place = request.target.removeprefix("place:")
-                return (
-                    f"Не нашёл «{place}» на карте кампуса. Маршрут можно проложить до кабинета "
-                    "(корпус-кабинет), корпуса, КПП, спортзала, буфета, библиотеки и других отмеченных мест."
-                )
-            # маршрут не кэшируем: строится мгновенно и детерминированно
-            return route
+        if plan.clarification is not None:
+            if plan.clarification.field not in {fact.field for fact in facts}:
+                return plan.clarification
+            # LLM переспрашивает уже известное - не зацикливаемся
+            logger.warning("Question: повторное уточнение поля %s, игнорирую", plan.clarification.field)
+            plan = QuestionPlan(search=plan.search, schedule=plan.schedule, route=plan.route)
+        if plan == QuestionPlan():
+            plan = QuestionPlan(search=SearchTask(question=question, queries=(question,)))
 
-        if isinstance(really_questions_or_schedule, ScheduleRequest):
-            return await self._get_schedule.execute(
-                question, really_questions_or_schedule.group, really_questions_or_schedule.date
-            )
+        # части независимы - выполняем одновременно, порядок в ответе: расписание, база, маршрут
+        schedule_part, search_part, route_part = await asyncio.gather(
+            self._schedule_part(plan.schedule, question),
+            self._search_part(plan.search),
+            self._route_part(plan.route),
+        )
+        route_text, route = route_part if route_part else (None, None)
+        text = "\n\n".join(part for part in (schedule_part, search_part, route_text) if part)
 
-        really_questions = really_questions_or_schedule
-        division = detect_division(question)
+        only_search = plan.schedule is None and plan.route is None
+        if only_search and search_part and not history:
+            await self._question_cache_service.save(cache_key, text)
+        return Answer(text=text, route=route)
+
+    async def _schedule_part(self, request: ScheduleRequest | None, question: str) -> str | None:
+        if request is None:
+            return None
+        return await self._get_schedule.execute(request.question or question, request.group, request.date)
+
+    async def _search_part(self, task: SearchTask | None) -> str | None:
+        if task is None:
+            return None
+        division = detect_division(task.question)
         division_slug = division.slug if division else None
         if division_slug:
             logger.debug("Question: обнаружен Division по ключевым словам: %s", division_slug)
-
-        data = await self._search_data.execute(really_questions, division=division_slug)
+        data = await self._search_data.execute(list(task.queries), division=division_slug)
         logger.info("Question: найдено документов=%d (id=%s)", len(data), [item.id for item in data])
-        answer = await self._analyze_data.execute(question, data)
-        await self._question_cache_service.save(cache_key, answer)
-        return answer
+        return await self._analyze_data.execute(task.question, data)
+
+    async def _route_part(self, request: RouteRequest | None):
+        if request is None:
+            return None
+        route = await self._build_route.execute(request.source, request.target) if self._build_route else None
+        if route is None:
+            place = request.target.removeprefix("place:")
+            return (
+                f"Не нашёл «{place}» на карте кампуса. Маршрут можно проложить до кабинета "
+                "(корпус-кабинет), корпуса, КПП, спортзала, буфета, библиотеки и других отмеченных мест.",
+                None,
+            )
+        return route.text(), route

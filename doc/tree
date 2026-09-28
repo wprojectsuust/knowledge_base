@@ -20,11 +20,14 @@
 │   │   │   └── schemas.py
 │   │   ├── domain
 │   │   │   ├── __init__.py
+│   │   │   ├── answer.py
 │   │   │   ├── campus.py
 │   │   │   ├── clarification.py
 │   │   │   ├── data.py
+│   │   │   ├── dialog.py
 │   │   │   ├── division.py
 │   │   │   ├── location.py
+│   │   │   ├── plan.py
 │   │   │   ├── route.py
 │   │   │   └── schedule.py
 │   │   ├── repositories
@@ -58,9 +61,9 @@
 │   │   │   ├── analyze_data.py
 │   │   │   ├── analyze_schedule.py
 │   │   │   ├── build_route.py
-│   │   │   ├── get_really_questions.py
 │   │   │   ├── get_schedule.py
 │   │   │   ├── new_data.py
+│   │   │   ├── plan_question.py
 │   │   │   ├── question.py
 │   │   │   ├── remove_data.py
 │   │   │   ├── resolve_location.py
@@ -97,9 +100,9 @@
 │   │   ├── use_cases
 │   │   │   ├── test_analyze_data.py
 │   │   │   ├── test_build_route.py
-│   │   │   ├── test_get_really_questions.py
 │   │   │   ├── test_get_schedule.py
 │   │   │   ├── test_new_data.py
+│   │   │   ├── test_plan_question.py
 │   │   │   ├── test_question.py
 │   │   │   ├── test_remove_data.py
 │   │   │   ├── test_resolve_location.py
@@ -166,20 +169,20 @@
 
 Строки кода
 ============================================================
-Всего файлов: 129
-Всего строк: 30154
+Всего файлов: 132
+Всего строк: 30104
 
 По расширениям:
   .png                 12018
   .json                7576
-  .py                  5522
+  .py                  5464
   .tsx                 1851
   .css                 1407
   .jpg                 599
-  (без расширения)     333
+  (без расширения)     334
   .ts                  260
   .html                216
-  .md                  200
+  .md                  207
   .js                  61
   .toml                41
   .yml                 39

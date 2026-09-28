@@ -8,9 +8,11 @@ from src.api.dependencies import (
     get_search_data_by_id_use_case,
     get_search_data_use_case,
 )
+from src.domain.answer import Answer
+from src.domain.clarification import ClarificationRequest
 from src.domain.data import Data
+from src.domain.dialog import DialogTurn
 from src.use_cases.analyze_data import AnalyzeDataByLLMForUser
-from src.use_cases.get_really_questions import GetReallyQuestions
 from src.use_cases.analyze_schedule import AnalyzeScheduleForUser
 from src.use_cases.get_schedule import GetSchedule
 from src.use_cases.new_data import NewData
@@ -37,32 +39,20 @@ def test_upload_page_serves_html() -> None:
     assert "<form" in response.text
 
 
-async def test_ask_question_returns_answer_from_use_case(
-    make_fake_llm_service,
-    fake_embedding_service,
-    fake_vector_search_service,
-    fake_data_store_service,
-    fake_question_cache_service,
-    fake_schedule_service,
-    fake_schedule_cache_service,
-) -> None:
-    await fake_vector_search_service.index(sample_data.id, [1.0])
-    fake_data_store_service.store[sample_data.id] = sample_data
+class _StubQuestion:
+    """Use case-заглушка: API-тестам важна форма ответа, а не пайплайн (он покрыт в test_question)."""
 
-    get_really_questions = GetReallyQuestions(make_fake_llm_service('["где деканат"]'))
-    search_data = SearchDataByListOfStr(fake_embedding_service, fake_vector_search_service, fake_data_store_service)
-    analyze_data = AnalyzeDataByLLMForUser(make_fake_llm_service("Деканат в корпусе 2."))
-    get_schedule = GetSchedule(
-        fake_schedule_service,
-        fake_schedule_cache_service,
-        fake_embedding_service,
-        fake_vector_search_service,
-        fake_data_store_service,
-        AnalyzeScheduleForUser(make_fake_llm_service("не должно вызываться")),
-    )
-    use_case = Question(get_really_questions, search_data, analyze_data, fake_question_cache_service, get_schedule)
+    def __init__(self, result) -> None:
+        self.result = result
+        self.calls: list[tuple] = []
 
-    client = _client_with_overrides({get_question_use_case: lambda: use_case})
+    async def execute(self, question, facts=None, history=None):
+        self.calls.append((question, facts, history))
+        return self.result
+
+
+def test_ask_question_returns_answer_with_location_of_mentioned_building() -> None:
+    client = _client_with_overrides({get_question_use_case: lambda: _StubQuestion(Answer(text="Деканат в корпусе 2."))})
 
     response = client.post("/question", json={"question": "Где деканат?"})
 
@@ -75,37 +65,40 @@ async def test_ask_question_returns_answer_from_use_case(
     }
 
 
-async def test_ask_question_returns_no_location_for_non_navigation_question(
-    make_fake_llm_service,
-    fake_embedding_service,
-    fake_vector_search_service,
-    fake_data_store_service,
-    fake_question_cache_service,
-    fake_schedule_service,
-    fake_schedule_cache_service,
-) -> None:
-    await fake_vector_search_service.index(sample_data.id, [1.0])
-    fake_data_store_service.store[sample_data.id] = sample_data
-
-    get_really_questions = GetReallyQuestions(make_fake_llm_service('["какие есть стипендии"]'))
-    search_data = SearchDataByListOfStr(fake_embedding_service, fake_vector_search_service, fake_data_store_service)
-    analyze_data = AnalyzeDataByLLMForUser(make_fake_llm_service("Документы сдаются в корпусе 2."))
-    get_schedule = GetSchedule(
-        fake_schedule_service,
-        fake_schedule_cache_service,
-        fake_embedding_service,
-        fake_vector_search_service,
-        fake_data_store_service,
-        AnalyzeScheduleForUser(make_fake_llm_service("не должно вызываться")),
-    )
-    use_case = Question(get_really_questions, search_data, analyze_data, fake_question_cache_service, get_schedule)
-
-    client = _client_with_overrides({get_question_use_case: lambda: use_case})
+def test_ask_question_returns_no_location_for_non_navigation_question() -> None:
+    stub = _StubQuestion(Answer(text="Документы сдаются в корпусе 2."))
+    client = _client_with_overrides({get_question_use_case: lambda: stub})
 
     response = client.post("/question", json={"question": "Какие есть стипендии?"})
 
-    assert response.status_code == 200
     assert response.json()["location"] is None
+
+
+async def test_ask_question_returns_route_instead_of_location() -> None:
+    from src.repositories.json_campus_repository import JsonCampusRepository
+    from src.services.campus_service import CampusService
+    from src.use_cases.build_route import BuildRoute
+
+    route = await BuildRoute(CampusService(JsonCampusRepository())).execute(None, "7-404")
+    client = _client_with_overrides({get_question_use_case: lambda: _StubQuestion(Answer(text=route.text(), route=route))})
+
+    body = client.post("/question", json={"question": "как пройти в 7-404"}).json()
+
+    assert body["route"]["points"][-1]["floor"] == 4
+    assert body["location"] is None
+
+
+def test_ask_question_passes_chat_history_to_use_case() -> None:
+    stub = _StubQuestion(Answer(text="Через главный вход."))
+    client = _client_with_overrides({get_question_use_case: lambda: stub})
+
+    client.post(
+        "/question",
+        json={"question": "а как туда пройти?", "history": [{"question": "где деканат", "answer": "В корпусе 2."}]},
+    )
+
+    _, _, history = stub.calls[0]
+    assert history == [DialogTurn(question="где деканат", answer="В корпусе 2.")]
 
 
 async def test_search_returns_matched_data(
@@ -218,29 +211,9 @@ async def test_delete_data_returns_ok_true(fake_data_store_service, fake_vector_
     assert await fake_data_store_service.get(1) is None
 
 
-def test_ask_question_returns_clarification_when_student_info_missing(
-    make_fake_llm_service,
-    fake_embedding_service,
-    fake_vector_search_service,
-    fake_data_store_service,
-    fake_question_cache_service,
-    fake_schedule_service,
-    fake_schedule_cache_service,
-) -> None:
-    get_really_questions = GetReallyQuestions(make_fake_llm_service("clarify-group: В какой группе вы учитесь?"))
-    search_data = SearchDataByListOfStr(fake_embedding_service, fake_vector_search_service, fake_data_store_service)
-    analyze_data = AnalyzeDataByLLMForUser(make_fake_llm_service("не должно вызываться"))
-    get_schedule = GetSchedule(
-        fake_schedule_service,
-        fake_schedule_cache_service,
-        fake_embedding_service,
-        fake_vector_search_service,
-        fake_data_store_service,
-        AnalyzeScheduleForUser(make_fake_llm_service("не должно вызываться")),
-    )
-    use_case = Question(get_really_questions, search_data, analyze_data, fake_question_cache_service, get_schedule)
-
-    client = _client_with_overrides({get_question_use_case: lambda: use_case})
+def test_ask_question_returns_clarification_when_student_info_missing() -> None:
+    stub = _StubQuestion(ClarificationRequest(field="group", question="В какой группе вы учитесь?"))
+    client = _client_with_overrides({get_question_use_case: lambda: stub})
 
     response = client.post("/question", json={"question": "Какое у меня завтра расписание?"})
 
@@ -300,7 +273,7 @@ def test_ask_question_returns_503_with_readable_message_when_llm_is_overloaded()
     from src.services.llm_service import LLMUnavailableError
 
     class _OverloadedQuestion:
-        async def execute(self, question, facts=None):
+        async def execute(self, question, facts=None, history=None):
             raise LLMUnavailableError("503 high demand")
 
     client = _client_with_overrides({get_question_use_case: lambda: _OverloadedQuestion()})

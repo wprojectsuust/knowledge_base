@@ -1,12 +1,14 @@
 from dataclasses import dataclass, field
 
 
-@dataclass(kw_only=True)
+@dataclass(frozen=True, kw_only=True)
 class ScheduleRequest:
-    """Извлечённый из вопроса пользователя запрос расписания: группа + дата (ISO)."""
+    """Извлечённый из вопроса пользователя запрос расписания: группа + дата (ISO) и что именно
+    про расписание спросили (чтобы ответить по существу, а не перечислять весь день)."""
 
     group: str
     date: str  # YYYY-MM-DD
+    question: str = ""
 
 
 @dataclass(kw_only=True)

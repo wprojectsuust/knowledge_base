@@ -28,9 +28,11 @@ from src.api.schemas import (
     SearchRequest,
     route_out,
 )
-from src.domain.campus import Route, generate_rooms
+from src.domain.answer import Answer
+from src.domain.campus import generate_rooms
 from src.domain.clarification import ClarificationRequest, KnownFact
 from src.domain.data import Data
+from src.domain.dialog import DialogTurn
 from src.domain.division import divisions_by_slug
 from src.services.campus_service import CampusService
 from src.use_cases.build_route import BuildRoute
@@ -60,19 +62,22 @@ async def ask_question(
 ) -> QuestionResponse:
     logger.info("POST /question: %s (известно полей: %d)", payload.question, len(payload.facts))
     facts = [KnownFact(field=fact.field, value=fact.value) for fact in payload.facts]
-    answer = await use_case.execute(payload.question, facts)
-    if isinstance(answer, ClarificationRequest):
-        logger.info("POST /question: нужно уточнение поля %s", answer.field)
-        return QuestionResponse(clarification=ClarificationOut(field=answer.field, question=answer.question))
-    if isinstance(answer, Route):
-        logger.info("POST /question: маршрут %s -> %s", answer.from_label, answer.to_label)
-        return QuestionResponse(answer=answer.text(), route=route_out(answer))
+    history = [DialogTurn(question=turn.question, answer=turn.answer) for turn in payload.history]
+    result = await use_case.execute(payload.question, facts, history)
+    if isinstance(result, ClarificationRequest):
+        logger.info("POST /question: нужно уточнение поля %s", result.field)
+        return QuestionResponse(clarification=ClarificationOut(field=result.field, question=result.question))
+
+    assert isinstance(result, Answer)
+    if result.route is not None:
+        logger.info("POST /question: маршрут %s -> %s", result.route.from_label, result.route.to_label)
+        return QuestionResponse(answer=result.text, route=route_out(result.route))
 
     # место считаем от готового ответа, а не храним в кэше: вычисляется детерминированно и дёшево
-    location = await resolve_location.execute(payload.question, answer)
-    logger.info("POST /question: ответ готов (%d символов), место=%s", len(answer), location)
+    location = await resolve_location.execute(payload.question, result.text)
+    logger.info("POST /question: ответ готов (%d символов), место=%s", len(result.text), location)
     return QuestionResponse(
-        answer=answer,
+        answer=result.text,
         location=LocationOut(building=location.building, room=location.room, floor=location.floor)
         if location
         else None,
