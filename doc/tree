@@ -106,13 +106,18 @@
 │   └── ref.png
 ├── frontend
 │   ├── app
+│   │   ├── ask
+│   │   │   └── page.tsx
 │   │   ├── globals.css
 │   │   ├── layout.tsx
 │   │   └── page.tsx
 │   ├── components
+│   │   ├── AnimatedBackground.tsx
 │   │   ├── Icons.tsx
 │   │   ├── QuickAccessCard.tsx
-│   │   └── Sidebar.tsx
+│   │   ├── Sidebar.tsx
+│   │   ├── SourcesList.tsx
+│   │   └── UserMenu.tsx
 │   ├── lib
 │   │   └── api.ts
 │   ├── public
@@ -124,7 +129,8 @@
 │   ├── next.config.mjs
 │   ├── package-lock.json
 │   ├── package.json
-│   └── tsconfig.json
+│   ├── tsconfig.json
+│   └── tsconfig.tsbuildinfo
 ├── scripts
 │   └── tree.py
 ├── .env.example
@@ -135,16 +141,16 @@
 
 Строки кода
 ============================================================
-Всего файлов: 101
-Всего строк: 23825
+Всего файлов: 106
+Всего строк: 24177
 
 По расширениям:
   .png                 12018
   .json                5884
   .py                  3728
-  .css                 687
-  .tsx                 580
-  (без расширения)     300
+  .css                 858
+  .tsx                 759
+  (без расширения)     301
   .html                216
   .md                  200
   .js                  61
@@ -153,3 +159,4 @@
   .yml                 39
   .example             23
   .mjs                 7
+  .tsbuildinfo         1

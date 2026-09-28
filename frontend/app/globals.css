@@ -47,8 +47,97 @@ input {
 /* ---------- layout ---------- */
 
 .layout {
+  position: relative;
+  z-index: 1;
   display: flex;
   min-height: 100vh;
+}
+
+/* ---------- фон: размытые пятна, медленно плавают ---------- */
+
+.bg-blobs {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.55;
+  will-change: transform;
+}
+
+.blob-1 {
+  width: 620px;
+  height: 620px;
+  top: -180px;
+  left: 20%;
+  background: radial-gradient(circle, #2f4dff, transparent 70%);
+  animation: drift-1 38s ease-in-out infinite alternate;
+}
+
+.blob-2 {
+  width: 520px;
+  height: 520px;
+  top: 40%;
+  right: -120px;
+  background: radial-gradient(circle, #6a3cff, transparent 70%);
+  opacity: 0.4;
+  animation: drift-2 46s ease-in-out infinite alternate;
+}
+
+.blob-3 {
+  width: 560px;
+  height: 560px;
+  bottom: -220px;
+  left: 5%;
+  background: radial-gradient(circle, #1f8bff, transparent 70%);
+  opacity: 0.35;
+  animation: drift-3 52s ease-in-out infinite alternate;
+}
+
+.blob-4 {
+  width: 380px;
+  height: 380px;
+  top: 30%;
+  left: 40%;
+  background: radial-gradient(circle, #3b5bff, transparent 70%);
+  opacity: 0.3;
+  animation: drift-4 60s ease-in-out infinite alternate;
+}
+
+@keyframes drift-1 {
+  to {
+    transform: translate(260px, 180px) scale(1.15);
+  }
+}
+
+@keyframes drift-2 {
+  to {
+    transform: translate(-320px, -220px) scale(0.9);
+  }
+}
+
+@keyframes drift-3 {
+  to {
+    transform: translate(380px, -160px) scale(1.2);
+  }
+}
+
+@keyframes drift-4 {
+  to {
+    transform: translate(-280px, 240px) scale(1.25);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blob {
+    animation: none;
+  }
 }
 
 .main {
@@ -56,7 +145,8 @@ input {
   flex: 1;
   min-width: 0;
   padding: 24px 28px 40px 46px;
-  overflow: hidden;
+  /* clip, а не hidden: hidden делает main скролл-контейнером и ломает sticky-поле ввода на /ask */
+  overflow-x: clip;
 }
 
 /* световая дуга за hero, как в референсе */
@@ -105,7 +195,8 @@ input {
   display: flex;
   flex-direction: column;
   gap: 26px;
-  background: linear-gradient(180deg, rgba(8, 18, 58, 0.9), rgba(5, 11, 36, 0.9));
+  background: linear-gradient(180deg, rgba(8, 18, 58, 0.72), rgba(5, 11, 36, 0.72));
+  backdrop-filter: blur(14px);
   border-right: 1px solid rgba(92, 124, 255, 0.14);
   position: sticky;
   top: 0;
@@ -113,6 +204,7 @@ input {
 }
 
 .brand {
+  text-decoration: none;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -139,6 +231,7 @@ input {
 }
 
 .nav-item {
+  text-decoration: none;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -506,6 +599,84 @@ input {
 
 .new-question:hover {
   background: rgba(40, 62, 170, 0.5);
+}
+
+/* ---------- страница «Задать вопрос» ---------- */
+
+.ask-empty {
+  min-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding-bottom: 60px;
+}
+
+.ask-title {
+  margin-top: 18px;
+  font-size: 52px;
+}
+
+.ask-subtitle {
+  margin: 18px 0 0;
+  max-width: 520px;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.ask-search {
+  width: 100%;
+  max-width: 760px;
+  height: 64px;
+  text-align: left;
+}
+
+.ask-chips {
+  margin-top: 22px;
+  justify-content: center;
+}
+
+.ask-chat {
+  max-width: 860px;
+  margin: 0 auto;
+  min-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  padding-top: 40px;
+}
+
+.ask-thread {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.ask-answer {
+  min-height: 0;
+}
+
+.ask-answer .answer-text {
+  max-height: none;
+  font-size: 14px;
+}
+
+.ask-answer .sources {
+  margin-bottom: 0;
+}
+
+.ask-composer {
+  position: sticky;
+  bottom: 0;
+  padding: 20px 0 28px;
+  background: linear-gradient(180deg, transparent, rgba(5, 11, 36, 0.85) 40%);
+}
+
+.ask-composer .ask-search {
+  max-width: none;
+  margin-top: 0;
 }
 
 /* ---------- quick access ---------- */

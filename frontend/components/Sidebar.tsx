@@ -1,31 +1,33 @@
-import { ArrowRightIcon, BellIcon, GridIcon, HomeIcon, LogoMark, SearchIcon, SendIcon, StarIcon } from "@/components/Icons";
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { ArrowRightIcon, HomeIcon, LogoMark, SearchIcon, SendIcon } from "@/components/Icons";
 
 const NAV_ITEMS = [
-  { label: "Главная", Icon: HomeIcon, active: true },
-  { label: "Задать вопрос", Icon: SearchIcon },
-  { label: "Разделы", Icon: GridIcon },
-  { label: "Избранное", Icon: StarIcon },
-  { label: "Уведомления", Icon: BellIcon, badge: 2 },
+  { label: "Главная", href: "/", Icon: HomeIcon },
+  { label: "Задать вопрос", href: "/ask", Icon: SearchIcon },
 ];
 
 export function Sidebar() {
+  const pathname = usePathname();
+
   return (
     <aside className="sidebar">
-      <div className="brand">
+      <Link href="/" className="brand">
         <LogoMark size={38} />
         <div>
           <p className="brand-title">УУНиТ</p>
           <p className="brand-subtitle">База знаний студентов</p>
         </div>
-      </div>
+      </Link>
 
       <nav className="nav">
-        {NAV_ITEMS.map(({ label, Icon, active, badge }) => (
-          <div key={label} className={`nav-item${active ? " active" : ""}`}>
+        {NAV_ITEMS.map(({ label, href, Icon }) => (
+          <Link key={href} href={href} className={`nav-item${pathname === href ? " active" : ""}`}>
             <Icon size={22} />
             {label}
-            {badge ? <span className="nav-badge">{badge}</span> : null}
-          </div>
+          </Link>
         ))}
       </nav>
 

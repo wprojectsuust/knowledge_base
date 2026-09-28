@@ -1,26 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { Sidebar } from "@/components/Sidebar";
 import { QuickAccessCard } from "@/components/QuickAccessCard";
+import { SourcesList } from "@/components/SourcesList";
 import {
   BookmarkLockIcon,
   CalendarIcon,
-  ChevronDownIcon,
   DatabaseIcon,
   DocumentIcon,
   ExternalLinkIcon,
-  FileBadgeIcon,
   MapPinIcon,
   RefreshIcon,
   SearchIcon,
   SendIcon,
   ShieldCheckIcon,
   ShieldIcon,
-  SourcesIcon,
   SparkleIcon,
   TentIcon,
-  UserIcon,
   ZapIcon,
 } from "@/components/Icons";
 import { askQuestion, extractSources, stripSourceTags } from "@/lib/api";
@@ -70,10 +66,6 @@ const TRUST_ITEMS = [
 
 type Status = "idle" | "loading" | "error";
 
-function isUrl(value: string) {
-  return /^https?:\/\//i.test(value);
-}
-
 export default function HomePage() {
   const [question, setQuestion] = useState("");
   const [askedQuestion, setAskedQuestion] = useState<string | null>(null);
@@ -116,177 +108,139 @@ export default function HomePage() {
   const answerText = answer ? stripSourceTags(answer) : "";
 
   return (
-    <div className="layout">
-      <Sidebar />
+    <>
+      <section className="hero">
+        <div className="hero-left">
+          <span className="pill">
+            <TentIcon size={14} />
+            УУНиТ База знаний
+          </span>
 
-      <main className="main">
-        <div className="topbar">
-          <button className="user-menu" type="button">
-            <UserIcon size={32} />
-            Студент
-            <ChevronDownIcon size={18} />
-          </button>
-        </div>
+          <h1 className="hero-title">
+            Задайте вопрос —<br />
+            <span className="accent">получите ответ</span>
+          </h1>
 
-        <section className="hero">
-          <div className="hero-left">
-            <span className="pill">
-              <TentIcon size={14} />
-              УУНиТ База знаний
-            </span>
+          <p className="hero-text">
+            База знаний УУНиТ собрала всю важную информацию об университете, учебе и студенческой жизни в
+            одном месте.
+          </p>
 
-            <h1 className="hero-title">
-              Задайте вопрос —<br />
-              <span className="accent">получите ответ</span>
-            </h1>
-
-            <p className="hero-text">
-              База знаний УУНиТ собрала всю важную информацию об университете, учебе и студенческой жизни в
-              одном месте.
-            </p>
-
-            <form
-              className="search"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void handleAsk(question);
-              }}
-            >
-              <SearchIcon size={22} />
-              <input
-                value={question}
-                onChange={(event) => setQuestion(event.target.value)}
-                placeholder="Например: где получить справку об обучении?"
-              />
-              <button className="search-button" type="submit" disabled={status === "loading"} aria-label="Спросить">
-                <SendIcon size={22} />
-              </button>
-            </form>
-
-            <p className="popular-label">Популярные вопросы:</p>
-            <div className="chips">
-              {POPULAR_QUESTIONS.map((item) => (
-                <button key={item} className="chip" type="button" onClick={() => ask(item)}>
-                  {item}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="answer-shell">
-            <div className="question-bar">
-              <span className="q-icon">
-                <BookmarkLockIcon size={15} />
-              </span>
-              <span className="q-text">{askedQuestion ?? "Ваш вопрос появится здесь"}</span>
-              <span className="q-link">
-                <ExternalLinkIcon size={16} />
-              </span>
-            </div>
-
-            <div className="answer-card">
-              <div className="answer-head">
-                <SparkleIcon size={18} />
-                Ответ
-              </div>
-
-              {status === "loading" && (
-                <div className="skeleton">
-                  <span style={{ width: "92%" }} />
-                  <span style={{ width: "80%" }} />
-                  <span style={{ width: "86%" }} />
-                  <span style={{ width: "60%" }} />
-                </div>
-              )}
-
-              {status === "error" && <p className="answer-text error-text">{errorMessage}</p>}
-
-              {status === "idle" && !answer && (
-                <p className="answer-text answer-muted">
-                  Задайте вопрос или выберите популярный — ответ из базы знаний появится здесь вместе с
-                  источниками.
-                </p>
-              )}
-
-              {answer && status === "idle" && <p className="answer-text">{answerText}</p>}
-
-              <div className="sources">
-                <div className="sources-head">
-                  <SourcesIcon size={17} />
-                  Источники
-                </div>
-                {sources.length > 0 ? (
-                  sources.map((source) => (
-                    <div key={source} className="source-row">
-                      <span className="source-icon">
-                        <FileBadgeIcon size={12} />
-                      </span>
-                      {isUrl(source) ? (
-                        <a href={source} target="_blank" rel="noreferrer">
-                          {source}
-                        </a>
-                      ) : (
-                        <span className="source-name">{source}</span>
-                      )}
-                      <span className="ext">
-                        <ExternalLinkIcon size={13} />
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="source-row answer-muted">Появятся вместе с ответом</div>
-                )}
-              </div>
-
-              <button className="new-question" type="button" onClick={reset}>
-                <RefreshIcon size={16} />
-                Задать новый вопрос
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <div className="divider" />
-
-        <h2 className="section-title">Быстрый доступ</h2>
-        <div className="quick-grid">
-          {QUICK_ACCESS.map((item) => (
-            <QuickAccessCard
-              key={item.title}
-              icon={item.icon}
-              title={item.title}
-              description={item.description}
-              onClick={() => ask(item.question)}
+          <form
+            className="search"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleAsk(question);
+            }}
+          >
+            <SearchIcon size={22} />
+            <input
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              placeholder="Например: где получить справку об обучении?"
             />
-          ))}
-        </div>
+            <button className="search-button" type="submit" disabled={status === "loading"} aria-label="Спросить">
+              <SendIcon size={22} />
+            </button>
+          </form>
 
-        <section className="trust">
-          <div className="trust-main">
-            <span className="trust-badge">
-              <ShieldCheckIcon size={30} />
-            </span>
-            <span>
-              Ответы формируются по данным университета
-              <br />и сопровождаются источниками.
-            </span>
-          </div>
-          <div className="trust-items">
-            {TRUST_ITEMS.map(({ Icon, title, sub }) => (
-              <div key={title} className="trust-item">
-                <span className="trust-item-icon">
-                  <Icon size={20} />
-                </span>
-                <span>
-                  {title}
-                  <br />
-                  <span className="sub">{sub}</span>
-                </span>
-              </div>
+          <p className="popular-label">Популярные вопросы:</p>
+          <div className="chips">
+            {POPULAR_QUESTIONS.map((item) => (
+              <button key={item} className="chip" type="button" onClick={() => ask(item)}>
+                {item}
+              </button>
             ))}
           </div>
-        </section>
-      </main>
-    </div>
+        </div>
+
+        <div className="answer-shell">
+          <div className="question-bar">
+            <span className="q-icon">
+              <BookmarkLockIcon size={15} />
+            </span>
+            <span className="q-text">{askedQuestion ?? "Ваш вопрос появится здесь"}</span>
+            <span className="q-link">
+              <ExternalLinkIcon size={16} />
+            </span>
+          </div>
+
+          <div className="answer-card">
+            <div className="answer-head">
+              <SparkleIcon size={18} />
+              Ответ
+            </div>
+
+            {status === "loading" && (
+              <div className="skeleton">
+                <span style={{ width: "92%" }} />
+                <span style={{ width: "80%" }} />
+                <span style={{ width: "86%" }} />
+                <span style={{ width: "60%" }} />
+              </div>
+            )}
+
+            {status === "error" && <p className="answer-text error-text">{errorMessage}</p>}
+
+            {status === "idle" && !answer && (
+              <p className="answer-text answer-muted">
+                Задайте вопрос или выберите популярный — ответ из базы знаний появится здесь вместе с
+                источниками.
+              </p>
+            )}
+
+            {answer && status === "idle" && <p className="answer-text">{answerText}</p>}
+
+            <SourcesList sources={sources} emptyText="Появятся вместе с ответом" />
+
+            <button className="new-question" type="button" onClick={reset}>
+              <RefreshIcon size={16} />
+              Задать новый вопрос
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <div className="divider" />
+
+      <h2 className="section-title">Быстрый доступ</h2>
+      <div className="quick-grid">
+        {QUICK_ACCESS.map((item) => (
+          <QuickAccessCard
+            key={item.title}
+            icon={item.icon}
+            title={item.title}
+            description={item.description}
+            onClick={() => ask(item.question)}
+          />
+        ))}
+      </div>
+
+      <section className="trust">
+        <div className="trust-main">
+          <span className="trust-badge">
+            <ShieldCheckIcon size={30} />
+          </span>
+          <span>
+            Ответы формируются по данным университета
+            <br />и сопровождаются источниками.
+          </span>
+        </div>
+        <div className="trust-items">
+          {TRUST_ITEMS.map(({ Icon, title, sub }) => (
+            <div key={title} className="trust-item">
+              <span className="trust-item-icon">
+                <Icon size={20} />
+              </span>
+              <span>
+                {title}
+                <br />
+                <span className="sub">{sub}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+    </>
   );
 }
