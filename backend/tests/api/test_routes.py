@@ -67,7 +67,11 @@ async def test_ask_question_returns_answer_from_use_case(
     response = client.post("/question", json={"question": "Где деканат?"})
 
     assert response.status_code == 200
-    assert response.json() == {"answer": "Деканат в корпусе 2.", "location": {"building": "2", "room": None, "floor": None}}
+    assert response.json() == {
+        "answer": "Деканат в корпусе 2.",
+        "clarification": None,
+        "location": {"building": "2", "room": None, "floor": None},
+    }
 
 
 async def test_ask_question_returns_no_location_for_non_navigation_question(
@@ -211,3 +215,48 @@ async def test_delete_data_returns_ok_true(fake_data_store_service, fake_vector_
     assert response.status_code == 200
     assert response.json() == {"ok": True}
     assert await fake_data_store_service.get(1) is None
+
+
+def test_ask_question_returns_clarification_when_student_info_missing(
+    make_fake_llm_service,
+    fake_embedding_service,
+    fake_vector_search_service,
+    fake_data_store_service,
+    fake_question_cache_service,
+    fake_schedule_service,
+    fake_schedule_cache_service,
+) -> None:
+    get_really_questions = GetReallyQuestions(make_fake_llm_service("clarify-group: В какой группе вы учитесь?"))
+    search_data = SearchDataByListOfStr(fake_embedding_service, fake_vector_search_service, fake_data_store_service)
+    analyze_data = AnalyzeDataByLLMForUser(make_fake_llm_service("не должно вызываться"))
+    get_schedule = GetSchedule(
+        fake_schedule_service,
+        fake_schedule_cache_service,
+        fake_embedding_service,
+        fake_vector_search_service,
+        fake_data_store_service,
+        AnalyzeScheduleForUser(make_fake_llm_service("не должно вызываться")),
+    )
+    use_case = Question(get_really_questions, search_data, analyze_data, fake_question_cache_service, get_schedule)
+
+    client = _client_with_overrides({get_question_use_case: lambda: use_case})
+
+    response = client.post("/question", json={"question": "Какое у меня завтра расписание?"})
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "answer": None,
+        "clarification": {"field": "group", "question": "В какой группе вы учитесь?"},
+        "location": None,
+    }
+
+
+def test_ask_question_rejects_malformed_fact_field() -> None:
+    # до use case дело дойти не должно - валидация отсекает запрос раньше
+    client = _client_with_overrides({get_question_use_case: lambda: None})
+
+    response = client.post(
+        "/question", json={"question": "расписание", "facts": [{"field": "DROP TABLE", "value": "x"}]}
+    )
+
+    assert response.status_code == 422

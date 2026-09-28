@@ -2,10 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BookmarkLockIcon, SearchIcon, SendIcon, SparkleIcon, TentIcon } from "@/components/Icons";
+import { ClarificationPrompt } from "@/components/ClarificationPrompt";
+import { FactChips } from "@/components/FactChips";
 import { SourcesList } from "@/components/SourcesList";
 import { Typewriter } from "@/components/Typewriter";
 import { VenueMap } from "@/components/VenueMap";
-import { askQuestion, extractSources, stripSourceTags, type Location } from "@/lib/api";
+import { askQuestion, extractSources, stripSourceTags, type Clarification, type Fact, type Location } from "@/lib/api";
+import { useStudentFacts } from "@/lib/useStudentFacts";
 
 const SUGGESTIONS = [
   "Где находится деканат?",
@@ -18,6 +21,9 @@ type Exchange = {
   id: number;
   question: string;
   answer: string | null;
+  clarification: Clarification | null;
+  /** что студент ответил на уточнение - показываем его репликой в ленте */
+  clarifiedWith: string | null;
   location: Location | null;
   error: string | null;
   typed: boolean;
@@ -28,31 +34,56 @@ export default function AskPage() {
   const [exchanges, setExchanges] = useState<Exchange[]>([]);
   const [loading, setLoading] = useState(false);
   const threadEndRef = useRef<HTMLDivElement>(null);
+  const { facts, remember, forget } = useStudentFacts();
 
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [exchanges]);
 
-  async function handleAsk(text: string) {
+  function update(id: number, patch: Partial<Exchange>) {
+    setExchanges((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  }
+
+  async function run(id: number, text: string, knownFacts: Fact[]) {
+    setLoading(true);
+    try {
+      const result = await askQuestion(text, knownFacts);
+      update(id, { answer: result.answer, clarification: result.clarification, location: result.location });
+    } catch (error) {
+      update(id, { error: error instanceof Error ? error.message : "Не удалось получить ответ." });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleAsk(text: string) {
     const trimmed = text.trim();
     if (!trimmed || loading) return;
 
     const id = Date.now();
-    setExchanges((prev) => [...prev, { id, question: trimmed, answer: null, location: null, error: null, typed: false }]);
+    setExchanges((prev) => [
+      ...prev,
+      {
+        id,
+        question: trimmed,
+        answer: null,
+        clarification: null,
+        clarifiedWith: null,
+        location: null,
+        error: null,
+        typed: false,
+      },
+    ]);
     setQuestion("");
-    setLoading(true);
+    void run(id, trimmed, facts);
+  }
 
-    const update = (patch: Partial<Exchange>) =>
-      setExchanges((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
-
-    try {
-      const result = await askQuestion(trimmed);
-      update({ answer: result.answer, location: result.location });
-    } catch (error) {
-      update({ error: error instanceof Error ? error.message : "Не удалось получить ответ." });
-    } finally {
-      setLoading(false);
-    }
+  function answerClarification(item: Exchange, value: string) {
+    if (!item.clarification) return;
+    const nextFacts = remember({ field: item.clarification.field, value });
+    update(item.id, { clarification: null, clarifiedWith: value });
+    // тот же исходный вопрос, но уже с новым сведением о студенте
+    void run(item.id, item.question, nextFacts);
   }
 
   const searchForm = (
@@ -76,6 +107,8 @@ export default function AskPage() {
     </form>
   );
 
+  const factChips = <FactChips facts={facts} onForget={forget} />;
+
   // карту показываем только для самого свежего ответа, если в нём есть место
   const last = exchanges[exchanges.length - 1];
   const lastWithLocation = last?.location ? last : null;
@@ -94,9 +127,10 @@ export default function AskPage() {
           Спросите про учёбу, документы, корпуса или своё расписание — ответ придёт с источниками.
         </p>
         {searchForm}
+        {factChips}
         <div className="chips ask-chips">
           {SUGGESTIONS.map((item) => (
-            <button key={item} className="chip" type="button" onClick={() => void handleAsk(item)}>
+            <button key={item} className="chip" type="button" onClick={() => handleAsk(item)}>
               {item}
             </button>
           ))}
@@ -109,7 +143,7 @@ export default function AskPage() {
     <section className="ask-chat">
       <div className="ask-thread">
         {exchanges.map((item) => {
-          const done = item.answer !== null || item.error !== null;
+          const done = item.answer !== null || item.error !== null || item.clarification !== null;
           return (
             <article key={item.id} className="answer-shell">
               <div className="question-bar">
@@ -125,6 +159,17 @@ export default function AskPage() {
                   Ответ
                 </div>
 
+                {item.clarifiedWith && (
+                  <div className="clarified">
+                    <span>{item.clarifiedWith}</span>
+                  </div>
+                )}
+                {item.clarification && (
+                  <ClarificationPrompt
+                    clarification={item.clarification}
+                    onSubmit={(value) => answerClarification(item, value)}
+                  />
+                )}
                 {!done && (
                   <div className="skeleton">
                     <span style={{ width: "92%" }} />
@@ -138,7 +183,7 @@ export default function AskPage() {
                     <Typewriter
                       className="answer-text"
                       text={stripSourceTags(item.answer)}
-                      onDone={() => setExchanges((prev) => prev.map((x) => (x.id === item.id ? { ...x, typed: true } : x)))}
+                      onDone={() => update(item.id, { typed: true })}
                     />
                     <SourcesList sources={extractSources(item.answer)} />
                   </>
@@ -150,16 +195,17 @@ export default function AskPage() {
         <div ref={threadEndRef} />
       </div>
 
-      <div className="ask-composer">{searchForm}</div>
+      <div className="ask-composer">
+        {searchForm}
+        {factChips}
+      </div>
 
       {lastWithLocation && (
         <VenueMap
           key={lastWithLocation.id}
           location={lastWithLocation.location!}
           ready={lastWithLocation.typed}
-          onDismiss={() =>
-            setExchanges((prev) => prev.map((x) => (x.id === lastWithLocation.id ? { ...x, location: null } : x)))
-          }
+          onDismiss={() => update(lastWithLocation.id, { location: null })}
         />
       )}
     </section>

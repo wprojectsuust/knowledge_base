@@ -1,5 +1,6 @@
 import logging
 
+from src.domain.clarification import ClarificationRequest, KnownFact, compose_question
 from src.domain.division import detect_division
 from src.domain.schedule import ScheduleRequest
 from src.services.question_cache_service import QuestionCacheService
@@ -17,7 +18,12 @@ class Question:
 
     Запросы расписания (group+date) не попадают в этот кэш - дата может быть выражена
     относительно ("завтра"), и тот же текст завтра будет значить другой день. У расписания
-    свой кэш с TTL (ScheduleCacheService), этого достаточно."""
+    свой кэш с TTL (ScheduleCacheService), этого достаточно.
+
+    Если для ответа не хватает сведений о студенте (например, группы), возвращается
+    ClarificationRequest - фронт спрашивает студента и присылает тот же вопрос с facts.
+    Уточнения не кэшируются. Известные facts склеиваются с вопросом в один текст, поэтому
+    кэш ключуется и по ним тоже."""
 
     def __init__(
         self,
@@ -37,7 +43,9 @@ class Question:
     def _cache_key(question: str) -> str:
         return question.strip().lower()
 
-    async def execute(self, question: str) -> str:
+    async def execute(self, question: str, facts: list[KnownFact] | None = None) -> str | ClarificationRequest:
+        facts = facts or []
+        question = compose_question(question, facts)
         cache_key = self._cache_key(question)
         cached_answer = await self._question_cache_service.get(cache_key)
         if cached_answer is not None:
@@ -46,6 +54,13 @@ class Question:
 
         logger.info("Question: получен вопрос=%s", question)
         really_questions_or_schedule = await self._get_really_questions.execute(question)
+
+        if isinstance(really_questions_or_schedule, ClarificationRequest):
+            if really_questions_or_schedule.field not in {fact.field for fact in facts}:
+                return really_questions_or_schedule
+            # LLM переспрашивает уже известное - не зацикливаемся, ищем по исходному тексту
+            logger.warning("Question: повторное уточнение поля %s, игнорирую", really_questions_or_schedule.field)
+            really_questions_or_schedule = [question]
 
         if isinstance(really_questions_or_schedule, ScheduleRequest):
             return await self._get_schedule.execute(

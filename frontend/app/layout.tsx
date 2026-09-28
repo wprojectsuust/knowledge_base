@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { Sidebar } from "@/components/Sidebar";
-import { UserMenu } from "@/components/UserMenu";
 
 export const metadata: Metadata = {
   title: "УУНиТ — База знаний студентов",
@@ -25,7 +24,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="layout">
           <Sidebar />
           <main className="main">
-            <UserMenu />
             {children}
           </main>
         </div>

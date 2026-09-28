@@ -19,9 +19,12 @@ import {
   TentIcon,
   ZapIcon,
 } from "@/components/Icons";
+import { ClarificationPrompt } from "@/components/ClarificationPrompt";
+import { FactChips } from "@/components/FactChips";
 import { Typewriter } from "@/components/Typewriter";
 import { VenueMap } from "@/components/VenueMap";
-import { askQuestion, extractSources, stripSourceTags, type Location } from "@/lib/api";
+import { askQuestion, extractSources, stripSourceTags, type Clarification, type Fact, type Location } from "@/lib/api";
+import { useStudentFacts } from "@/lib/useStudentFacts";
 
 const POPULAR_QUESTIONS = [
   "Где находится деканат?",
@@ -76,10 +79,16 @@ export default function HomePage() {
   const [typed, setTyped] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [clarification, setClarification] = useState<Clarification | null>(null);
+  const [clarifiedWith, setClarifiedWith] = useState<string | null>(null);
+  const { facts, remember, forget } = useStudentFacts();
 
-  async function handleAsk(text: string) {
+  async function handleAsk(text: string, knownFacts: Fact[] = facts, keepClarified = false) {
     const trimmed = text.trim();
     if (!trimmed || status === "loading") return;
+
+    setClarification(null);
+    if (!keepClarified) setClarifiedWith(null);
 
     setStatus("loading");
     setErrorMessage(null);
@@ -89,7 +98,8 @@ export default function HomePage() {
     setAskedQuestion(trimmed);
 
     try {
-      const result = await askQuestion(trimmed);
+      const result = await askQuestion(trimmed, knownFacts);
+      setClarification(result.clarification);
       setAnswer(result.answer);
       setLocation(result.location);
       setStatus("idle");
@@ -104,7 +114,16 @@ export default function HomePage() {
     void handleAsk(text);
   }
 
+  function answerClarification(value: string) {
+    if (!clarification || !askedQuestion) return;
+    const nextFacts = remember({ field: clarification.field, value });
+    setClarifiedWith(value);
+    void handleAsk(askedQuestion, nextFacts, true);
+  }
+
   function reset() {
+    setClarification(null);
+    setClarifiedWith(null);
     setAnswer(null);
     setLocation(null);
     setAskedQuestion(null);
@@ -153,6 +172,8 @@ export default function HomePage() {
             </button>
           </form>
 
+          <FactChips facts={facts} onForget={forget} />
+
           <p className="popular-label">Популярные вопросы:</p>
           <div className="chips">
             {POPULAR_QUESTIONS.map((item) => (
@@ -180,6 +201,16 @@ export default function HomePage() {
               Ответ
             </div>
 
+            {clarifiedWith && (
+              <div className="clarified">
+                <span>{clarifiedWith}</span>
+              </div>
+            )}
+
+            {clarification && status === "idle" && (
+              <ClarificationPrompt clarification={clarification} onSubmit={answerClarification} />
+            )}
+
             {status === "loading" && (
               <div className="skeleton">
                 <span style={{ width: "92%" }} />
@@ -191,7 +222,7 @@ export default function HomePage() {
 
             {status === "error" && <p className="answer-text error-text">{errorMessage}</p>}
 
-            {status === "idle" && !answer && (
+            {status === "idle" && !answer && !clarification && (
               <p className="answer-text answer-muted">
                 Задайте вопрос или выберите популярный — ответ из базы знаний появится здесь вместе с
                 источниками.
@@ -199,8 +230,8 @@ export default function HomePage() {
             )}
 
             {answer && status === "idle" && (
-                <Typewriter key={answer} className="answer-text" text={answerText} onDone={() => setTyped(true)} />
-              )}
+              <Typewriter key={answer} className="answer-text" text={answerText} onDone={() => setTyped(true)} />
+            )}
 
             <SourcesList sources={sources} emptyText="Появятся вместе с ответом" />
 

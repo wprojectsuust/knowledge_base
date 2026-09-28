@@ -6,16 +6,28 @@ export type Location = {
   floor: number | null;
 };
 
+export type Clarification = {
+  field: string;
+  question: string;
+};
+
+export type Fact = {
+  field: string;
+  value: string;
+};
+
+/** Ровно одно из answer / clarification не null. */
 export type AskQuestionResponse = {
-  answer: string;
+  answer: string | null;
+  clarification: Clarification | null;
   location: Location | null;
 };
 
-export async function askQuestion(question: string): Promise<AskQuestionResponse> {
+export async function askQuestion(question: string, facts: Fact[] = []): Promise<AskQuestionResponse> {
   const response = await fetch(`${API_BASE_URL}/question`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, facts: facts.map(({ field, value }) => ({ field, value })) }),
   });
 
   if (!response.ok) {
@@ -24,7 +36,11 @@ export async function askQuestion(question: string): Promise<AskQuestionResponse
   }
 
   const data: AskQuestionResponse = await response.json();
-  return { answer: data.answer, location: data.location ?? null };
+  return {
+    answer: data.answer ?? null,
+    clarification: data.clarification ?? null,
+    location: data.location ?? null,
+  };
 }
 
 const SOURCE_PATTERN = /\[Источник:\s*([^\]]+)]/gi;

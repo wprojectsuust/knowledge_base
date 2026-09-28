@@ -31,16 +31,17 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="help-card">
+      <a className="help-card" href="https://t.me/karrrad" target="_blank" rel="noreferrer">
         <p className="help-card-title">Не нашли нужную информацию?</p>
-        <p className="help-card-text">Напишите нам — мы добавим её в базу знаний</p>
+        <p className="help-card-text">Напишите нам в Telegram — мы добавим её в базу знаний</p>
+        <p className="help-card-handle">@karrrad</p>
         <span className="help-card-icon">
           <SendIcon size={20} />
         </span>
         <span className="help-card-arrow">
           <ArrowRightIcon size={16} />
         </span>
-      </div>
+      </a>
     </aside>
   );
 }

@@ -1,4 +1,5 @@
 from src.domain.schedule import DaySchedule
+from src.domain.clarification import ClarificationRequest, KnownFact
 from src.use_cases.analyze_data import AnalyzeDataByLLMForUser
 from src.use_cases.get_really_questions import GetReallyQuestions
 from src.use_cases.analyze_schedule import AnalyzeScheduleForUser
@@ -153,3 +154,97 @@ async def test_question_dispatches_to_schedule_when_marker_detected(
     # ответ про расписание не должен попадать в обычный кэш вопрос-ответ (дата может быть
     # относительной, тот же текст завтра значит другой день)
     assert schedule_question.strip().lower() not in fake_question_cache_service.store
+
+
+async def test_question_returns_clarification_request_and_does_not_cache_it(
+    make_fake_llm_service,
+    fake_embedding_service,
+    fake_vector_search_service,
+    fake_data_store_service,
+    fake_question_cache_service,
+    fake_schedule_service,
+    fake_schedule_cache_service,
+) -> None:
+    use_case = _build_use_case(
+        make_fake_llm_service,
+        fake_embedding_service,
+        fake_vector_search_service,
+        fake_data_store_service,
+        fake_question_cache_service,
+        fake_schedule_service,
+        fake_schedule_cache_service,
+        answer="не должно вызываться",
+        llm_response="clarify-group: В какой группе вы учитесь?",
+    )
+
+    result = await use_case.execute(question="какое у меня завтра расписание")
+
+    assert result == ClarificationRequest(field="group", question="В какой группе вы учитесь?")
+    assert fake_question_cache_service.store == {}
+
+
+async def test_question_passes_known_facts_to_llm(
+    make_fake_llm_service,
+    fake_embedding_service,
+    fake_vector_search_service,
+    fake_data_store_service,
+    fake_question_cache_service,
+    fake_schedule_service,
+    fake_schedule_cache_service,
+) -> None:
+    llm = make_fake_llm_service("rasp-ПРО-101-2026-09-29")
+    fake_schedule_service.schedules[("ПРО-101", "2026-09-29")] = DaySchedule(
+        group="ПРО-101", date="2026-09-29", day_label="Вторник 29.09.2026", lessons=[]
+    )
+    get_schedule = GetSchedule(
+        fake_schedule_service,
+        fake_schedule_cache_service,
+        fake_embedding_service,
+        fake_vector_search_service,
+        fake_data_store_service,
+        AnalyzeScheduleForUser(make_fake_llm_service("")),
+    )
+    use_case = Question(
+        GetReallyQuestions(llm),
+        SearchDataByListOfStr(fake_embedding_service, fake_vector_search_service, fake_data_store_service),
+        AnalyzeDataByLLMForUser(make_fake_llm_service("")),
+        fake_question_cache_service,
+        get_schedule,
+    )
+
+    answer = await use_case.execute(
+        question="какое у меня завтра расписание", facts=[KnownFact(field="group", value="ПРО-101")]
+    )
+
+    assert "ПРО-101" in llm.last_prompt
+    assert answer == "Вторник 29.09.2026: пар нет."
+
+
+async def test_question_ignores_repeated_clarification_of_known_field(
+    sample_data,
+    make_fake_llm_service,
+    fake_embedding_service,
+    fake_vector_search_service,
+    fake_data_store_service,
+    fake_question_cache_service,
+    fake_schedule_service,
+    fake_schedule_cache_service,
+) -> None:
+    # защита от зацикливания: студент уже назвал группу, а LLM всё равно переспрашивает
+    await fake_vector_search_service.index(sample_data.id, [1.0])
+    fake_data_store_service.store[sample_data.id] = sample_data
+    use_case = _build_use_case(
+        make_fake_llm_service,
+        fake_embedding_service,
+        fake_vector_search_service,
+        fake_data_store_service,
+        fake_question_cache_service,
+        fake_schedule_service,
+        fake_schedule_cache_service,
+        answer="Обычный ответ из базы знаний.",
+        llm_response="clarify-group: В какой группе вы учитесь?",
+    )
+
+    answer = await use_case.execute(question="где деканат", facts=[KnownFact(field="group", value="ПРО-101")])
+
+    assert answer == "Обычный ответ из базы знаний."

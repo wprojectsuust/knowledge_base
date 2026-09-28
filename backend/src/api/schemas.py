@@ -1,8 +1,15 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+
+class FactIn(BaseModel):
+    field: str = Field(max_length=40, pattern=r"^[a-z_]+$")
+    value: str = Field(min_length=1, max_length=200)
 
 
 class QuestionRequest(BaseModel):
     question: str
+    # уже известные сведения о студенте (ответы на прошлые уточнения), фронт хранит их у себя
+    facts: list[FactIn] = Field(default_factory=list, max_length=10)
 
 
 class LocationOut(BaseModel):
@@ -11,8 +18,15 @@ class LocationOut(BaseModel):
     floor: int | None = None
 
 
+class ClarificationOut(BaseModel):
+    field: str
+    question: str
+
+
 class QuestionResponse(BaseModel):
-    answer: str
+    # ровно одно из двух: либо ответ, либо просьба уточнить сведения о студенте
+    answer: str | None = None
+    clarification: ClarificationOut | None = None
     location: LocationOut | None = None
 
 

@@ -13,6 +13,7 @@ from src.api.dependencies import (
     get_search_data_use_case,
 )
 from src.api.schemas import (
+    ClarificationOut,
     DataCreated,
     DataIn,
     DataOut,
@@ -22,6 +23,7 @@ from src.api.schemas import (
     QuestionResponse,
     SearchRequest,
 )
+from src.domain.clarification import ClarificationRequest, KnownFact
 from src.domain.data import Data
 from src.domain.division import divisions_by_slug
 from src.use_cases.new_data import NewData
@@ -48,8 +50,13 @@ async def ask_question(
     use_case: Question = Depends(get_question_use_case),
     resolve_location: ResolveLocation = Depends(get_resolve_location_use_case),
 ) -> QuestionResponse:
-    logger.info("POST /question: %s", payload.question)
-    answer = await use_case.execute(payload.question)
+    logger.info("POST /question: %s (известно полей: %d)", payload.question, len(payload.facts))
+    facts = [KnownFact(field=fact.field, value=fact.value) for fact in payload.facts]
+    answer = await use_case.execute(payload.question, facts)
+    if isinstance(answer, ClarificationRequest):
+        logger.info("POST /question: нужно уточнение поля %s", answer.field)
+        return QuestionResponse(clarification=ClarificationOut(field=answer.field, question=answer.question))
+
     # место считаем от готового ответа, а не храним в кэше: вычисляется детерминированно и дёшево
     location = await resolve_location.execute(payload.question, answer)
     logger.info("POST /question: ответ готов (%d символов), место=%s", len(answer), location)

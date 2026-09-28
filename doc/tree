@@ -20,6 +20,7 @@
 │   │   │   └── schemas.py
 │   │   ├── domain
 │   │   │   ├── __init__.py
+│   │   │   ├── clarification.py
 │   │   │   ├── data.py
 │   │   │   ├── division.py
 │   │   │   ├── location.py
@@ -64,6 +65,7 @@
 │   │   ├── api
 │   │   │   └── test_routes.py
 │   │   ├── domain
+│   │   │   ├── test_clarification.py
 │   │   │   └── test_division.py
 │   │   ├── e2e
 │   │   │   └── test_knowledge_base_workflow_e2e.py
@@ -116,15 +118,17 @@
 │   │   └── page.tsx
 │   ├── components
 │   │   ├── AnimatedBackground.tsx
+│   │   ├── ClarificationPrompt.tsx
+│   │   ├── FactChips.tsx
 │   │   ├── Icons.tsx
 │   │   ├── QuickAccessCard.tsx
 │   │   ├── Sidebar.tsx
 │   │   ├── SourcesList.tsx
 │   │   ├── Typewriter.tsx
-│   │   ├── UserMenu.tsx
 │   │   └── VenueMap.tsx
 │   ├── lib
-│   │   └── api.ts
+│   │   ├── api.ts
+│   │   └── useStudentFacts.ts
 │   ├── public
 │   │   └── .gitkeep
 │   ├── .dockerignore
@@ -145,20 +149,20 @@
 
 Строки кода
 ============================================================
-Всего файлов: 110
-Всего строк: 24759
+Всего файлов: 114
+Всего строк: 25424
 
 По расширениям:
   .png                 12018
   .json                5884
-  .py                  3893
-  .css                 1089
-  .tsx                 933
-  (без расширения)     307
+  .py                  4160
+  .css                 1268
+  .tsx                 1073
+  (без расширения)     312
   .html                216
   .md                  200
+  .ts                  122
   .js                  61
-  .ts                  48
   .toml                41
   .yml                 39
   .example             23

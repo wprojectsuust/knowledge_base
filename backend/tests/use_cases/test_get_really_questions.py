@@ -1,4 +1,5 @@
 from src.domain.schedule import ScheduleRequest
+from src.domain.clarification import ClarificationRequest
 from src.use_cases.get_really_questions import GetReallyQuestions
 
 
@@ -34,3 +35,23 @@ async def test_detects_schedule_request_from_marker(fake_llm_service) -> None:
     result = await use_case.execute(question="какое расписание у 1-1.1.1.-26А на 30 сентября")
 
     assert result == ScheduleRequest(group="1-1.1.1.-26А", date="2026-09-30")
+
+
+async def test_detects_clarification_request_from_marker(fake_llm_service) -> None:
+    fake_llm_service.response = "clarify-group: В какой группе вы учитесь?"
+    use_case = GetReallyQuestions(fake_llm_service)
+
+    result = await use_case.execute(question="какое у меня завтра расписание")
+
+    assert result == ClarificationRequest(field="group", question="В какой группе вы учитесь?")
+
+
+async def test_prompt_offers_clarification_only_when_allowed(fake_llm_service) -> None:
+    fake_llm_service.response = "[]"
+    use_case = GetReallyQuestions(fake_llm_service)
+
+    await use_case.execute(question="какое у меня завтра расписание", can_clarify=True)
+    assert "clarify-" in fake_llm_service.last_prompt
+
+    await use_case.execute(question="какое у меня завтра расписание", can_clarify=False)
+    assert "clarify-" not in fake_llm_service.last_prompt
