@@ -113,10 +113,15 @@
 │   ├── app
 │   │   ├── ask
 │   │   │   └── page.tsx
+│   │   ├── map
+│   │   │   └── page.tsx
 │   │   ├── globals.css
 │   │   ├── layout.tsx
 │   │   └── page.tsx
 │   ├── components
+│   │   ├── campus
+│   │   │   ├── CampusMap.tsx
+│   │   │   └── CampusScene.tsx
 │   │   ├── AnimatedBackground.tsx
 │   │   ├── ClarificationPrompt.tsx
 │   │   ├── FactChips.tsx
@@ -128,6 +133,7 @@
 │   │   └── VenueMap.tsx
 │   ├── lib
 │   │   ├── api.ts
+│   │   ├── campus-data.ts
 │   │   └── useStudentFacts.ts
 │   ├── public
 │   │   └── .gitkeep
@@ -149,19 +155,19 @@
 
 Строки кода
 ============================================================
-Всего файлов: 114
-Всего строк: 25541
+Всего файлов: 118
+Всего строк: 26859
 
 По расширениям:
   .png                 12018
-  .json                5884
+  .json                6618
   .py                  4273
-  .css                 1268
-  .tsx                 1073
+  .tsx                 1515
+  .css                 1304
   (без расширения)     316
+  .ts                  228
   .html                216
   .md                  200
-  .ts                  122
   .js                  61
   .toml                41
   .yml                 39

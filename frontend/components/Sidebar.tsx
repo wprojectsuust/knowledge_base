@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowRightIcon, HomeIcon, LogoMark, SearchIcon, SendIcon } from "@/components/Icons";
+import { ArrowRightIcon, HomeIcon, LogoMark, MapPinIcon, SearchIcon, SendIcon } from "@/components/Icons";
 
 const NAV_ITEMS = [
   { label: "Главная", href: "/", Icon: HomeIcon },
   { label: "Задать вопрос", href: "/ask", Icon: SearchIcon },
+  { label: "Карта кампуса", href: "/map", Icon: MapPinIcon },
 ];
 
 export function Sidebar() {

@@ -858,81 +858,12 @@ input {
 .venue-canvas {
   position: absolute;
   inset: 0;
-  perspective: 700px;
   overflow: hidden;
 }
 
-/* перспективная «земля» - заглушка вместо карты */
-.venue-grid {
-  position: absolute;
-  left: -50%;
-  right: -50%;
-  top: 10%;
-  bottom: -60%;
-  background-image:
-    linear-gradient(rgba(120, 150, 255, 0.22) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(120, 150, 255, 0.22) 1px, transparent 1px);
-  background-size: 48px 48px;
-  transform: rotateX(62deg);
-  transform-origin: center top;
-  mask-image: radial-gradient(ellipse at 50% 30%, #000 30%, transparent 75%);
-  animation: grid-move 6s linear infinite;
-}
-
-@keyframes grid-move {
-  to {
-    background-position: 0 48px;
-  }
-}
-
-.venue-pin {
-  position: absolute;
-  left: 50%;
-  top: 48%;
-  transform: translate(-50%, -100%);
-  color: #fff;
-  filter: drop-shadow(0 0 12px rgba(120, 150, 255, 0.9));
-}
-
-.phase-center .venue-pin {
-  animation: pin-drop 0.7s 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-@keyframes pin-drop {
-  from {
-    transform: translate(-50%, -260%);
-    opacity: 0;
-  }
-  to {
-    transform: translate(-50%, -100%);
-    opacity: 1;
-  }
-}
-
-.venue-pulse {
-  position: absolute;
-  left: 50%;
-  bottom: -6px;
-  width: 18px;
-  height: 18px;
-  margin-left: -9px;
-  border-radius: 50%;
-  background: rgba(120, 150, 255, 0.6);
-  animation: pulse 1.8s ease-out infinite;
-}
-
-@keyframes pulse {
-  from {
-    transform: scale(0.5);
-    opacity: 1;
-  }
-  to {
-    transform: scale(4);
-    opacity: 0;
-  }
-}
-
 .venue-label {
+  z-index: 20;
+  pointer-events: none;
   position: absolute;
   left: 14px;
   bottom: 12px;
@@ -945,12 +876,10 @@ input {
 }
 
 .phase-center .venue-label {
-  left: 50%;
+  top: 16px;
+  left: 16px;
   bottom: auto;
-  top: calc(48% + 24px);
-  transform: translateX(-50%);
-  padding: 12px 20px;
-  text-align: center;
+  padding: 12px 18px;
 }
 
 .venue-title {
@@ -974,6 +903,8 @@ input {
 }
 
 .venue-stub {
+  z-index: 20;
+  pointer-events: none;
   position: absolute;
   left: 0;
   right: 0;
@@ -985,6 +916,7 @@ input {
 }
 
 .venue-close {
+  z-index: 20;
   position: absolute;
   top: 10px;
   right: 10px;
@@ -1004,11 +936,115 @@ input {
   .venue-backdrop {
     transition: none;
   }
-  .venue-grid,
-  .venue-pulse,
-  .phase-center .venue-pin {
+  .campus-pin {
     animation: none;
   }
+}
+
+/* ---------- 3D-карта кампуса ---------- */
+
+.campus-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  color: var(--muted-2);
+}
+
+.campus-label-wrap {
+  pointer-events: none;
+}
+
+.campus-label {
+  display: inline-block;
+  min-width: 26px;
+  padding: 3px 7px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 6px;
+  color: #fff;
+  background: rgba(47, 77, 255, 0.75);
+  border: 1px solid rgba(160, 185, 255, 0.7);
+  white-space: nowrap;
+}
+
+.campus-pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 10px;
+  white-space: nowrap;
+  color: #fff;
+  background: linear-gradient(135deg, #5c78ff, #3a55e8);
+  box-shadow: 0 0 24px rgba(77, 107, 255, 0.8);
+  transform: translateY(-40px);
+  opacity: 0;
+  transition:
+    transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 0.4s ease;
+}
+
+.campus-pin.dropped {
+  transform: translateY(-18px);
+  opacity: 1;
+}
+
+/* ножка пина */
+.campus-pin::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  margin-left: -6px;
+  border: 6px solid transparent;
+  border-top-color: #3a55e8;
+}
+
+.campus-pin-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.campus-pin-sub {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.map-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.map-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.map-toolbar .chip.active {
+  background: linear-gradient(90deg, #2c45c4, #23379e);
+  border-color: rgba(160, 185, 255, 0.8);
+}
+
+.map-stage {
+  position: relative;
+  height: calc(100vh - 170px);
+  min-height: 420px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+}
+
+.map-hint {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted-2);
 }
 
 /* ---------- страница «Задать вопрос» ---------- */

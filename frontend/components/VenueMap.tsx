@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MapPinIcon } from "@/components/Icons";
+import { CampusMap } from "@/components/campus/CampusMap";
 import type { Location } from "@/lib/api";
 
 type Phase = "hidden" | "corner" | "center" | "mini";
@@ -23,7 +23,8 @@ function describe(location: Location) {
 /**
  * Окно карты с «перелётом»: появляется маленьким в правом нижнем углу, пока ИИ печатает ответ,
  * затем плавно выезжает в центр экрана и показывает точку. Закрытие сворачивает обратно в угол.
- * Сама карта пока заглушка - сюда встанет 3D-модель кампуса.
+ * В углу кампус медленно облетается целиком, в центре камера летит к нужному корпусу и
+ * раскрывает этажи (см. CampusScene).
  */
 export function VenueMap({ location, ready, onDismiss }: VenueMapProps) {
   const [phase, setPhase] = useState<Phase>("hidden");
@@ -60,11 +61,7 @@ export function VenueMap({ location, ready, onDismiss }: VenueMapProps) {
         onClick={() => !expanded && setPhase("center")}
       >
         <div className="venue-canvas">
-          <div className="venue-grid" />
-          <div className="venue-pin">
-            <span className="venue-pulse" />
-            <MapPinIcon size={expanded ? 44 : 26} />
-          </div>
+          {phase !== "hidden" && <CampusMap target={location} focused={expanded} interactive={expanded} />}
         </div>
 
         <div className="venue-label">
@@ -72,7 +69,7 @@ export function VenueMap({ location, ready, onDismiss }: VenueMapProps) {
           {details.length > 0 && <p className="venue-details">{details.join(" · ")}</p>}
         </div>
 
-        {expanded && <p className="venue-stub">Здесь будет интерактивная 3D-карта кампуса</p>}
+        {expanded && <p className="venue-stub">Расположение корпусов пока примерное · крутите мышью</p>}
 
         <button
           type="button"
