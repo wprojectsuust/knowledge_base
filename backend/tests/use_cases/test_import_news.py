@@ -27,6 +27,10 @@ class FakeNewsService:
         return self.texts.get(url)
 
 
+async def _no_sleep(seconds: float) -> None:
+    return None
+
+
 @pytest.fixture
 def make_import(fake_llm_service, fake_embedding_service, fake_vector_search_service, fake_data_store_service):
     def _make(news_service) -> ImportNews:
@@ -37,7 +41,7 @@ def make_import(fake_llm_service, fake_embedding_service, fake_vector_search_ser
             fake_vector_search_service,
             fake_data_store_service,
         )
-        return ImportNews(news_service, fake_data_store_service, new_data)
+        return ImportNews(news_service, fake_data_store_service, new_data, pause_seconds=0, sleep=_no_sleep)
 
     return _make
 
@@ -66,3 +70,23 @@ async def test_counts_news_without_body_as_failed_and_continues(make_import, fak
 
     assert report.failed == 1
     assert report.imported == 1
+
+
+async def test_pauses_between_llm_calls_so_startup_does_not_hit_rate_limits(
+    fake_llm_service, fake_embedding_service, fake_vector_search_service, fake_data_store_service
+) -> None:
+    pauses: list[float] = []
+
+    async def record_sleep(seconds: float) -> None:
+        pauses.append(seconds)
+
+    fake_llm_service.response = '["вопрос"]'
+    new_data = NewData(
+        AnalyzeDataByLLMForNewData(fake_llm_service), fake_embedding_service, fake_vector_search_service, fake_data_store_service
+    )
+    news = FakeNewsService([FRESH, OLD, BROKEN], {FRESH.url: "текст", OLD.url: "текст", BROKEN.url: "текст"})
+
+    await ImportNews(news, fake_data_store_service, new_data, pause_seconds=15, sleep=record_sleep).execute(limit=10)
+
+    # три новости - две паузы между обращениями к LLM, после последней ждать незачем
+    assert pauses == [15, 15]

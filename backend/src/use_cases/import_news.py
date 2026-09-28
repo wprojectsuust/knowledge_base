@@ -1,5 +1,9 @@
+import asyncio
 import datetime as dt
 import logging
+from collections.abc import Awaitable, Callable
+
+from src import config
 
 from src.domain.data import Data
 from src.domain.news import ImportReport, NewsHeadline
@@ -19,15 +23,26 @@ class ImportNews:
     NewData: LLM генерирует вопросы, они индексируются - и на «что нового»/«какие мероприятия»
     бот отвечает по новостям со ссылкой на них."""
 
-    def __init__(self, news_service: NewsService, data_store_service: DataStoreService, new_data: NewData) -> None:
+    def __init__(
+        self,
+        news_service: NewsService,
+        data_store_service: DataStoreService,
+        new_data: NewData,
+        pause_seconds: float = config.NEWS_IMPORT_PAUSE_SECONDS,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    ) -> None:
         self._news_service = news_service
         self._data_store_service = data_store_service
         self._new_data = new_data
+        # пауза между обращениями к LLM - чтобы импорт не выедал лимит запросов живых вопросов
+        self._pause_seconds = pause_seconds
+        self._sleep = sleep
 
     async def execute(self, limit: int) -> ImportReport:
         headlines = await self._news_service.latest(limit)
         known = await self._data_store_service.existing_sources([item.url for item in headlines])
         imported = failed = 0
+        asked_llm = False
         for headline in headlines:
             if headline.url in known:
                 continue
@@ -36,6 +51,9 @@ class ImportNews:
                 logger.warning("ImportNews: не удалось получить текст %s", headline.url)
                 failed += 1
                 continue
+            if asked_llm:
+                await self._sleep(self._pause_seconds)
+            asked_llm = True
             try:
                 new_id = await self._new_data.execute(Data(source=headline.url, content=self._content(headline, text)))
             except LLMUnavailableError:

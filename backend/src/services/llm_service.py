@@ -46,8 +46,12 @@ class LLMProvider(Protocol):
 class GeminiProvider:
     """Провайдер поверх Gemini через OpenAI-совместимый эндпоинт.
 
-    model может быть списком через запятую: первая - основная, остальные - запасные на случай,
-    когда основная перегружена (Gemini регулярно отвечает 503 "high demand" на бесплатном тарифе)."""
+    model может быть списком через запятую: первая - основная, остальные - запасные.
+    Бесплатный тариф Gemini то перегружен (503), то упирается в лимит запросов (429), поэтому:
+    - 5xx и таймауты повторяем с нарастающей паузой (пики короткие);
+    - на 429 НЕ повторяем: модель уходит «остыть» на LLM_RATE_LIMIT_COOLDOWN_SECONDS, и пока
+      она остывает, запросы сразу идут на запасную - не долбим исчерпанный лимит;
+    - всё это укладывается в общий бюджет времени LLM_TOTAL_BUDGET_SECONDS."""
 
     def __init__(self, api_key: str, model: str, proxy_url: str | None = None) -> None:
         import httpx
@@ -59,11 +63,12 @@ class GeminiProvider:
             api_key=api_key,
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
             http_client=http_client,
-            # Gemini периодически отвечает 503 "high demand" - пики короткие, поэтому повторяем
-            # чаще, чем по умолчанию (2), с экспоненциальной паузой внутри клиента openai
-            max_retries=config.LLM_MAX_RETRIES,
+            # повторы - свои (см. generate): встроенные в openai повторяют и 429, а это только
+            # сжигает лимит и множит запросы
+            max_retries=0,
         )
         self._models = [name.strip() for name in model.split(",") if name.strip()]
+        self._cooling_until: dict[str, float] = {}
         logger.info(
             "GeminiProvider: инициализирован, модели=%s, прокси=%s", self._models, "да" if proxy_url else "нет"
         )
@@ -71,25 +76,46 @@ class GeminiProvider:
     def generate(self, prompt: str) -> str:
         last_error: Exception | None = None
         started = time.monotonic()
+
+        def budget_left() -> bool:
+            return time.monotonic() - started <= config.LLM_TOTAL_BUDGET_SECONDS
+
         for model in self._models:
-            # бюджет ограничивает только переход на запасные модели - первую пробуем всегда
-            if last_error is not None and time.monotonic() - started > config.LLM_TOTAL_BUDGET_SECONDS:
+            if self._cooling_until.get(model, 0) > time.monotonic():
+                logger.debug("Gemini %s остывает после 429, пропускаю", model)
+                continue
+            # бюджет ограничивает только повторы и запасные модели - первую попытку делаем всегда
+            if last_error is not None and not budget_left():
                 logger.warning("Gemini: бюджет %.0f с исчерпан, запасные модели не пробую", config.LLM_TOTAL_BUDGET_SECONDS)
                 break
-            logger.debug("Gemini запрос: model=%s prompt=%s", model, preview(prompt))
-            try:
-                response = self._client.chat.completions.create(
-                    model=model,
-                    temperature=0.2,
-                    messages=[{"role": "user", "content": prompt}],
-                )
-            except Exception as error:  # любая ошибка внешнего API для нас значит «модель недоступна»
-                logger.warning("Gemini %s недоступна после повторов: %s", model, error)
-                last_error = error
-                continue
-            answer = response.choices[0].message.content.strip()
-            logger.debug("Gemini ответ (%s): %s", model, preview(answer))
-            return answer
+            for attempt in range(1 + config.LLM_MAX_RETRIES):
+                logger.debug("Gemini запрос: model=%s попытка=%d prompt=%s", model, attempt + 1, preview(prompt))
+                try:
+                    response = self._client.chat.completions.create(
+                        model=model,
+                        temperature=0.2,
+                        messages=[{"role": "user", "content": prompt}],
+                    )
+                except Exception as error:  # любая ошибка внешнего API для нас значит «модель недоступна»
+                    last_error = error
+                    if getattr(error, "status_code", None) == 429:
+                        self._cooling_until[model] = time.monotonic() + config.LLM_RATE_LIMIT_COOLDOWN_SECONDS
+                        logger.warning(
+                            "Gemini %s: лимит запросов (429), остывает %d с", model, config.LLM_RATE_LIMIT_COOLDOWN_SECONDS
+                        )
+                        break
+                    if attempt < config.LLM_MAX_RETRIES and budget_left():
+                        pause = 2**attempt
+                        logger.warning("Gemini %s недоступна (%s), повтор через %d с", model, error, pause)
+                        time.sleep(pause)
+                        continue
+                    logger.warning("Gemini %s недоступна: %s", model, error)
+                    break
+                answer = response.choices[0].message.content.strip()
+                logger.debug("Gemini ответ (%s): %s", model, preview(answer))
+                return answer
+        if last_error is None:
+            raise LLMUnavailableError("все модели упёрлись в лимит запросов и ещё остывают")
         raise LLMUnavailableError(str(last_error)) from last_error
 
 

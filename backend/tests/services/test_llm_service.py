@@ -2,6 +2,8 @@ import asyncio
 import time
 from unittest.mock import MagicMock
 
+import pytest
+
 import src.config as config
 from src.services.llm_service import GeminiProvider, LLMService, parse_string_list
 
@@ -82,7 +84,7 @@ def test_parse_string_list_returns_empty_for_json_object_without_list() -> None:
     assert parse_string_list('{"note": "нет вопросов"}') == []
 
 
-def test_gemini_provider_wraps_api_failure_into_llm_unavailable(fake_openai: MagicMock) -> None:
+def test_gemini_provider_wraps_api_failure_into_llm_unavailable(fake_openai: MagicMock, clock) -> None:
     import pytest
 
     from src.services.llm_service import LLMUnavailableError
@@ -95,7 +97,7 @@ def test_gemini_provider_wraps_api_failure_into_llm_unavailable(fake_openai: Mag
         provider.generate("вопрос")
 
 
-def test_gemini_provider_falls_back_to_next_model_when_first_is_overloaded(fake_openai: MagicMock) -> None:
+def test_gemini_provider_falls_back_to_next_model_when_first_is_overloaded(fake_openai: MagicMock, clock) -> None:
     ok = MagicMock()
     ok.choices = [MagicMock(message=MagicMock(content="ответ"))]
 
@@ -109,23 +111,118 @@ def test_gemini_provider_falls_back_to_next_model_when_first_is_overloaded(fake_
     provider = GeminiProvider(api_key="key", model="busy-model, free-model")
 
     assert provider.generate("вопрос") == "ответ"
-    assert [call.kwargs["model"] for call in fake_openai.call_args_list] == ["busy-model", "free-model"]
+    # перегрузку (не 429) сначала повторяем - пики короткие, потом переходим на запасную
+    assert [call.kwargs["model"] for call in fake_openai.call_args_list] == ["busy-model"] * (
+        1 + config.LLM_MAX_RETRIES
+    ) + ["free-model"]
 
 
-def test_gemini_provider_stops_trying_models_when_time_budget_is_spent(fake_openai: MagicMock, monkeypatch) -> None:
-    import pytest
+class _StatusError(Exception):
+    """Как openai.APIStatusError: ошибка с HTTP-статусом."""
 
-    from src import config
+    def __init__(self, status_code: int) -> None:
+        super().__init__(f"Error code: {status_code}")
+        self.status_code = status_code
+
+
+class _Clock:
+    def __init__(self) -> None:
+        self.now = 1000.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+@pytest.fixture
+def clock(monkeypatch) -> _Clock:
     from src.services import llm_service
+
+    fake = _Clock()
+    monkeypatch.setattr(llm_service.time, "monotonic", fake)
+    monkeypatch.setattr(llm_service.time, "sleep", lambda seconds: setattr(fake, "now", fake.now + seconds))
+    return fake
+
+
+def _ok(text: str = "ответ") -> MagicMock:
+    response = MagicMock()
+    response.choices = [MagicMock(message=MagicMock(content=text))]
+    return response
+
+
+def _models_called(fake_openai: MagicMock) -> list[str]:
+    return [call.kwargs["model"] for call in fake_openai.call_args_list]
+
+
+def test_rate_limited_model_is_not_retried_and_is_skipped_while_cooling_down(fake_openai: MagicMock, clock) -> None:
+    fake_openai.side_effect = lambda **kwargs: (_ for _ in ()).throw(_StatusError(429)) if kwargs["model"] == "a" else _ok()
+    provider = GeminiProvider(api_key="key", model="a, b")
+
+    assert provider.generate("первый") == "ответ"
+    assert provider.generate("второй") == "ответ"
+
+    # 429 - сразу на запасную модель, без повторов; во второй раз в «a» даже не стучимся
+    assert _models_called(fake_openai) == ["a", "b", "b"]
+
+
+def test_rate_limited_model_is_used_again_after_cooldown(fake_openai: MagicMock, clock) -> None:
+    from src import config
+
+    calls = {"a": 0}
+
+    def create(**kwargs):
+        if kwargs["model"] == "a":
+            calls["a"] += 1
+            if calls["a"] == 1:
+                raise _StatusError(429)
+        return _ok()
+
+    fake_openai.side_effect = create
+    provider = GeminiProvider(api_key="key", model="a, b")
+
+    provider.generate("первый")
+    clock.now += config.LLM_RATE_LIMIT_COOLDOWN_SECONDS + 1
+    provider.generate("второй")
+
+    assert _models_called(fake_openai) == ["a", "b", "a"]
+
+
+def test_fails_fast_without_requests_when_every_model_is_cooling_down(fake_openai: MagicMock, clock) -> None:
     from src.services.llm_service import LLMUnavailableError
 
-    clock = iter([0.0, config.LLM_TOTAL_BUDGET_SECONDS + 1, config.LLM_TOTAL_BUDGET_SECONDS + 2])
-    monkeypatch.setattr(llm_service.time, "monotonic", lambda: next(clock))
-    fake_openai.side_effect = RuntimeError("timeout")
+    fake_openai.side_effect = _StatusError(429)
+    provider = GeminiProvider(api_key="key", model="a, b")
 
+    with pytest.raises(LLMUnavailableError):
+        provider.generate("первый")
+    with pytest.raises(LLMUnavailableError):
+        provider.generate("второй")
+
+    assert _models_called(fake_openai) == ["a", "b"]  # второй вызов не сделал ни одного запроса
+
+
+def test_overloaded_model_is_retried_before_falling_back(fake_openai: MagicMock, clock) -> None:
+    from src import config
+
+    fake_openai.side_effect = lambda **kwargs: (_ for _ in ()).throw(_StatusError(503)) if kwargs["model"] == "a" else _ok()
+    provider = GeminiProvider(api_key="key", model="a, b")
+
+    provider.generate("вопрос")
+
+    assert _models_called(fake_openai) == ["a"] * (1 + config.LLM_MAX_RETRIES) + ["b"]
+
+
+def test_stops_trying_models_when_time_budget_is_spent(fake_openai: MagicMock, clock) -> None:
+    from src import config
+    from src.services.llm_service import LLMUnavailableError
+
+    def slow_failure(**kwargs):
+        clock.now += config.LLM_TOTAL_BUDGET_SECONDS + 1
+        raise _StatusError(504)
+
+    fake_openai.side_effect = slow_failure
     provider = GeminiProvider(api_key="key", model="slow-model, other-model, third-model")
 
     with pytest.raises(LLMUnavailableError):
         provider.generate("вопрос")
-    # после первой модели бюджет исчерпан - остальные не трогаем, студент не ждёт минутами
-    assert [call.kwargs["model"] for call in fake_openai.call_args_list] == ["slow-model"]
+    # после первой попытки бюджет исчерпан - ни повторов, ни запасных моделей, студент не ждёт минутами
+    assert _models_called(fake_openai) == ["slow-model"]

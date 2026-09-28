@@ -14,8 +14,12 @@ LLM_MAX_CONCURRENCY: int = int(os.environ.get("LLM_MAX_CONCURRENCY", "5"))
 
 # Сколько раз повторять запрос к LLM при временной ошибке (503 перегрузка, 429, сеть) -
 # с экспоненциальной паузой. Gemini регулярно отвечает 503 "high demand" на пиках.
-# Повторы - на каждую модель из GEMINI_MODEL; при нескольких моделях больше и не нужно.
+# Повторы - на каждую модель из GEMINI_MODEL, только на 5xx/таймауты (не на 429).
 LLM_MAX_RETRIES: int = int(os.environ.get("LLM_MAX_RETRIES", "2"))
+
+# Сколько секунд модель «остывает» после ответа 429 (исчерпан лимит запросов бесплатного
+# тарифа): пока остывает, запросы сразу идут на запасную модель из GEMINI_MODEL.
+LLM_RATE_LIMIT_COOLDOWN_SECONDS: int = int(os.environ.get("LLM_RATE_LIMIT_COOLDOWN_SECONDS", "60"))
 
 # Таймаут одной попытки запроса к LLM и общий бюджет на весь вызов (все повторы и все
 # запасные модели) - чтобы при перегрузке студент получил «попробуйте позже», а не ждал минутами.
@@ -35,6 +39,9 @@ SCHEDULE_CACHE_TTL_SECONDS: int = int(os.environ.get("SCHEDULE_CACHE_TTL_SECONDS
 # вызов LLM (генерация поисковых вопросов), уже загруженные пропускаются без запросов.
 NEWS_IMPORT_INTERVAL_MINUTES: int = int(os.environ.get("NEWS_IMPORT_INTERVAL_MINUTES", "180"))
 NEWS_IMPORT_LIMIT: int = int(os.environ.get("NEWS_IMPORT_LIMIT", "14"))
+# Пауза между новостями при импорте - фоновый импорт не должен выедать лимит запросов к LLM,
+# нужный живым вопросам студентов (на пустой базе при старте новых новостей сразу 14).
+NEWS_IMPORT_PAUSE_SECONDS: float = float(os.environ.get("NEWS_IMPORT_PAUSE_SECONDS", "20"))
 
 # Порог косинусового сходства для обычного поиска по базе знаний: фрагменты ниже него не
 # попадают в контекст LLM - иначе на вопрос без ответа в базе модель пересказывает всё
