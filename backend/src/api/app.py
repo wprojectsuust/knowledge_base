@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from src.api.dependencies import (
     get_data_store_service,
@@ -67,6 +68,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # /campus отдаёт раскладку всех кабинетов (~сотни КБ JSON) - сжимаем
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
 
     app.include_router(router)
     return app

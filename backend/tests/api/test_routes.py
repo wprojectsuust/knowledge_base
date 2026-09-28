@@ -71,6 +71,7 @@ async def test_ask_question_returns_answer_from_use_case(
         "answer": "Деканат в корпусе 2.",
         "clarification": None,
         "location": {"building": "2", "room": None, "floor": None},
+        "route": None,
     }
 
 
@@ -248,6 +249,7 @@ def test_ask_question_returns_clarification_when_student_info_missing(
         "answer": None,
         "clarification": {"field": "group", "question": "В какой группе вы учитесь?"},
         "location": None,
+        "route": None,
     }
 
 
@@ -260,3 +262,35 @@ def test_ask_question_rejects_malformed_fact_field() -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_campus_endpoint_returns_campuses_with_generated_rooms() -> None:
+    client = _client_with_overrides({})
+
+    response = client.get("/campus")
+
+    assert response.status_code == 200
+    ugatu = next(campus for campus in response.json() if campus["id"] == "ugatu")
+    assert any(building["id"] == "7" for building in ugatu["buildings"])
+    assert ugatu["stairs"]
+    assert any(room[0] == "404" and room[1] == 4 for room in ugatu["rooms"]["7"])
+
+
+def test_route_endpoint_builds_route() -> None:
+    client = _client_with_overrides({})
+
+    response = client.post("/route", json={"source": "kpp", "target": "7-404"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["campus"] == "ugatu"
+    assert body["points"][-1]["floor"] == 4
+    assert "7-404" in body["text"]
+
+
+def test_route_endpoint_returns_404_for_unknown_place() -> None:
+    client = _client_with_overrides({})
+
+    response = client.post("/route", json={"source": "kpp", "target": "куда-то"})
+
+    assert response.status_code == 404

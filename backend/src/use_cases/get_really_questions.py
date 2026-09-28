@@ -3,6 +3,7 @@ import re
 from datetime import date
 
 from src.domain.clarification import ClarificationRequest
+from src.domain.route import RouteRequest
 from src.domain.schedule import ScheduleRequest
 from src.logging_utils import preview
 from src.services.llm_service import LLMService, parse_string_list
@@ -10,6 +11,7 @@ from src.services.llm_service import LLMService, parse_string_list
 logger = logging.getLogger(__name__)
 
 _SCHEDULE_MARKER_RE = re.compile(r"^rasp-(?P<group>.+)-(?P<date>\d{4}-\d{2}-\d{2})$")
+_ROUTE_MARKER_RE = re.compile(r"^route:\s*(?:(?P<source>.+?)\s*->\s*)?(?P<target>.+)$", re.IGNORECASE)
 _CLARIFY_MARKER_RE = re.compile(r"^clarify-(?P<field>[a-z_]+):\s*(?P<question>.+)$", re.DOTALL)
 
 _CLARIFY_INSTRUCTION = (
@@ -35,10 +37,12 @@ class GetReallyQuestions:
     Всё решается одним LLM-вызовом, а не несколькими - чтобы не умножать токены на
     каждый вопрос ради проверок "это не про расписание?" / "всего ли хватает?"."""
 
-    def __init__(self, llm_service: LLMService) -> None:
+    def __init__(self, llm_service: LLMService, places_hint: str = "") -> None:
         self._llm_service = llm_service
+        # какие места есть на карте кампуса и как их называть в маркере route (см. CampusService)
+        self._places_hint = places_hint
 
-    async def execute(self, question: str, can_clarify: bool = True) -> list[str] | ScheduleRequest | ClarificationRequest:
+    async def execute(self, question: str, can_clarify: bool = True) -> list[str] | ScheduleRequest | ClarificationRequest | RouteRequest:
         logger.debug("GetReallyQuestions: вход=%s", preview(question))
         today = date.today().isoformat()
         prompt = (
@@ -51,6 +55,7 @@ class GetReallyQuestions:
             "Группу приводи к официальному формату ИСУ: заглавные буквы, дефис между буквами и "
             "цифрами, как в справочнике (например 'топ106б' -> ТОП-106Б).\n"
             "Пример: rasp-1-1.1.1.-26А-2026-09-30\n\n"
+            + self._route_instruction()
             + (_CLARIFY_INSTRUCTION if can_clarify else "")
             + "Иначе - выдели из сообщения реальные поисковые вопросы, по которым можно найти "
             "ответ в базе знаний вуза, и верни ответ СТРОГО в формате JSON-массива строк, "
@@ -63,6 +68,11 @@ class GetReallyQuestions:
         if schedule_request is not None:
             logger.debug("GetReallyQuestions: обнаружен запрос расписания %s", schedule_request)
             return schedule_request
+
+        route_request = self._parse_route_marker(raw)
+        if route_request is not None:
+            logger.debug("GetReallyQuestions: запрос маршрута %s", route_request)
+            return route_request
 
         clarification = self._parse_clarify_marker(raw) if can_clarify else None
         if clarification is not None:
@@ -86,3 +96,24 @@ class GetReallyQuestions:
         if not match:
             return None
         return ClarificationRequest(field=match.group("field"), question=match.group("question").strip())
+
+    def _route_instruction(self) -> str:
+        places = f"Известные места:\n{self._places_hint}\n" if self._places_hint else ""
+        return (
+            "Если студент спрашивает, как пройти/дойти/добраться до места на территории "
+            "(кабинет, корпус, буфет, библиотека...), ответь СТРОГО одной строкой:\n"
+            "route: <откуда> -> <куда>\n"
+            "Если откуда не сказано - только route: <куда> (тогда маршрут от КПП).\n"
+            "Обозначения: kpp - КПП; 7-404 - кабинет 404 в корпусе 7; 7 - вход в корпус 7; "
+            "7@3 - 3 этаж корпуса 7; place:<id> - место из списка ниже.\n"
+            f"{places}"
+            "Пример: 'как пройти из 7-404 в 1-101' -> route: 7-404 -> 1-101\n\n"
+        )
+
+    @staticmethod
+    def _parse_route_marker(raw: str) -> RouteRequest | None:
+        match = _ROUTE_MARKER_RE.match(raw.strip())
+        if not match:
+            return None
+        source = match.group("source")
+        return RouteRequest(source=source.strip() if source else None, target=match.group("target").strip())

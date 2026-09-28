@@ -248,3 +248,41 @@ async def test_question_ignores_repeated_clarification_of_known_field(
     answer = await use_case.execute(question="где деканат", facts=[KnownFact(field="group", value="ПРО-101")])
 
     assert answer == "Обычный ответ из базы знаний."
+
+
+async def test_question_builds_route_when_llm_asks_for_navigation(
+    make_fake_llm_service,
+    fake_embedding_service,
+    fake_vector_search_service,
+    fake_data_store_service,
+    fake_question_cache_service,
+    fake_schedule_service,
+    fake_schedule_cache_service,
+) -> None:
+    from src.domain.campus import Route
+    from src.repositories.json_campus_repository import JsonCampusRepository
+    from src.services.campus_service import CampusService
+    from src.use_cases.build_route import BuildRoute
+
+    get_schedule = GetSchedule(
+        fake_schedule_service,
+        fake_schedule_cache_service,
+        fake_embedding_service,
+        fake_vector_search_service,
+        fake_data_store_service,
+        AnalyzeScheduleForUser(make_fake_llm_service("")),
+    )
+    use_case = Question(
+        GetReallyQuestions(make_fake_llm_service("route: kpp -> 7-404")),
+        SearchDataByListOfStr(fake_embedding_service, fake_vector_search_service, fake_data_store_service),
+        AnalyzeDataByLLMForUser(make_fake_llm_service("не должно вызываться")),
+        fake_question_cache_service,
+        get_schedule,
+        build_route=BuildRoute(CampusService(JsonCampusRepository())),
+    )
+
+    result = await use_case.execute(question="как пройти в 7-404")
+
+    assert isinstance(result, Route)
+    assert "4 этаж" in result.text()
+    assert fake_question_cache_service.store == {}

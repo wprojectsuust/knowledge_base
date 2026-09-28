@@ -1,10 +1,13 @@
 import logging
 
 from src.domain.clarification import ClarificationRequest, KnownFact, compose_question
+from src.domain.campus import Route
 from src.domain.division import detect_division
+from src.domain.route import RouteRequest
 from src.domain.schedule import ScheduleRequest
 from src.services.question_cache_service import QuestionCacheService
 from src.use_cases.analyze_data import AnalyzeDataByLLMForUser
+from src.use_cases.build_route import BuildRoute
 from src.use_cases.get_really_questions import GetReallyQuestions
 from src.use_cases.get_schedule import GetSchedule
 from src.use_cases.search_data import SearchDataByListOfStr
@@ -32,18 +35,20 @@ class Question:
         analyze_data: AnalyzeDataByLLMForUser,
         question_cache_service: QuestionCacheService,
         get_schedule: GetSchedule,
+        build_route: BuildRoute | None = None,
     ) -> None:
         self._get_really_questions = get_really_questions
         self._search_data = search_data
         self._analyze_data = analyze_data
         self._question_cache_service = question_cache_service
         self._get_schedule = get_schedule
+        self._build_route = build_route
 
     @staticmethod
     def _cache_key(question: str) -> str:
         return question.strip().lower()
 
-    async def execute(self, question: str, facts: list[KnownFact] | None = None) -> str | ClarificationRequest:
+    async def execute(self, question: str, facts: list[KnownFact] | None = None) -> str | ClarificationRequest | Route:
         facts = facts or []
         question = compose_question(question, facts)
         cache_key = self._cache_key(question)
@@ -61,6 +66,14 @@ class Question:
             # LLM переспрашивает уже известное - не зацикливаемся, ищем по исходному тексту
             logger.warning("Question: повторное уточнение поля %s, игнорирую", really_questions_or_schedule.field)
             really_questions_or_schedule = [question]
+
+        if isinstance(really_questions_or_schedule, RouteRequest):
+            request = really_questions_or_schedule
+            route = await self._build_route.execute(request.source, request.target) if self._build_route else None
+            if route is None:
+                return "Не смог построить маршрут: не нашёл такое место на карте кампуса. Уточните корпус и кабинет, например 7-404."
+            # маршрут не кэшируем: строится мгновенно и детерминированно
+            return route
 
         if isinstance(really_questions_or_schedule, ScheduleRequest):
             return await self._get_schedule.execute(

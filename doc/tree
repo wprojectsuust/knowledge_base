@@ -20,17 +20,22 @@
 │   │   │   └── schemas.py
 │   │   ├── domain
 │   │   │   ├── __init__.py
+│   │   │   ├── campus.py
 │   │   │   ├── clarification.py
 │   │   │   ├── data.py
 │   │   │   ├── division.py
 │   │   │   ├── location.py
+│   │   │   ├── route.py
 │   │   │   └── schedule.py
 │   │   ├── repositories
 │   │   │   ├── __init__.py
+│   │   │   ├── campus.json
+│   │   │   ├── campus_repository.py
 │   │   │   ├── chroma_vector_repository.py
 │   │   │   ├── data_repository.py
 │   │   │   ├── isu_groups.json
 │   │   │   ├── isu_schedule_repository.py
+│   │   │   ├── json_campus_repository.py
 │   │   │   ├── postgres_data_repository.py
 │   │   │   ├── postgres_question_cache_repository.py
 │   │   │   ├── postgres_schedule_cache_repository.py
@@ -40,6 +45,7 @@
 │   │   │   └── vector_repository.py
 │   │   ├── services
 │   │   │   ├── __init__.py
+│   │   │   ├── campus_service.py
 │   │   │   ├── data_store_service.py
 │   │   │   ├── embedding_service.py
 │   │   │   ├── llm_service.py
@@ -51,6 +57,7 @@
 │   │   │   ├── __init__.py
 │   │   │   ├── analyze_data.py
 │   │   │   ├── analyze_schedule.py
+│   │   │   ├── build_route.py
 │   │   │   ├── get_really_questions.py
 │   │   │   ├── get_schedule.py
 │   │   │   ├── new_data.py
@@ -65,6 +72,7 @@
 │   │   ├── api
 │   │   │   └── test_routes.py
 │   │   ├── domain
+│   │   │   ├── test_campus.py
 │   │   │   ├── test_clarification.py
 │   │   │   └── test_division.py
 │   │   ├── e2e
@@ -87,6 +95,7 @@
 │   │   │   └── question_load_test.js
 │   │   ├── use_cases
 │   │   │   ├── test_analyze_data.py
+│   │   │   ├── test_build_route.py
 │   │   │   ├── test_get_really_questions.py
 │   │   │   ├── test_get_schedule.py
 │   │   │   ├── test_new_data.py
@@ -157,18 +166,18 @@
 
 Строки кода
 ============================================================
-Всего файлов: 120
-Всего строк: 27896
+Всего файлов: 129
+Всего строк: 29948
 
 По расширениям:
   .png                 12018
-  .json                6618
-  .py                  4273
+  .json                7576
+  .py                  5364
   .tsx                 1667
   .css                 1368
   .jpg                 599
   .ts                  444
-  (без расширения)     322
+  (без расширения)     325
   .html                216
   .md                  200
   .js                  61

@@ -4,9 +4,11 @@ from functools import lru_cache
 from src import config
 from src.repositories.chroma_vector_repository import ChromaVectorRepository
 from src.repositories.isu_schedule_repository import IsuScheduleRepository
+from src.repositories.json_campus_repository import JsonCampusRepository
 from src.repositories.postgres_data_repository import PostgresDataRepository
 from src.repositories.postgres_question_cache_repository import PostgresQuestionCacheRepository
 from src.repositories.postgres_schedule_cache_repository import PostgresScheduleCacheRepository
+from src.services.campus_service import CampusService
 from src.services.data_store_service import DataStoreService
 from src.services.embedding_service import EmbeddingService
 from src.services.llm_service import LLMService
@@ -16,6 +18,7 @@ from src.services.schedule_service import ScheduleService
 from src.services.vector_search_service import VectorSearchService
 from src.use_cases.analyze_data import AnalyzeDataByLLMForNewData, AnalyzeDataByLLMForUser
 from src.use_cases.analyze_schedule import AnalyzeScheduleForUser
+from src.use_cases.build_route import BuildRoute
 from src.use_cases.get_really_questions import GetReallyQuestions
 from src.use_cases.get_schedule import GetSchedule
 from src.use_cases.new_data import NewData
@@ -73,8 +76,17 @@ def get_schedule_cache_service() -> ScheduleCacheService:
     return ScheduleCacheService(repository)
 
 
+@lru_cache
+def get_campus_service() -> CampusService:
+    return CampusService(JsonCampusRepository())
+
+
+def get_build_route_use_case() -> BuildRoute:
+    return BuildRoute(get_campus_service())
+
+
 def get_get_really_questions_use_case() -> GetReallyQuestions:
-    return GetReallyQuestions(get_llm_service())
+    return GetReallyQuestions(get_llm_service(), places_hint=get_campus_service().places_hint())
 
 
 def get_search_data_use_case() -> SearchDataByListOfStr:
@@ -132,6 +144,7 @@ def get_question_use_case() -> Question:
         get_analyze_data_for_user_use_case(),
         get_question_cache_service(),
         get_get_schedule_use_case(),
+        build_route=get_build_route_use_case(),
     )
 
 

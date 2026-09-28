@@ -5,6 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 
 from src.api.dependencies import (
+    get_build_route_use_case,
+    get_campus_service,
     get_new_data_use_case,
     get_question_use_case,
     get_remove_data_use_case,
@@ -21,11 +23,17 @@ from src.api.schemas import (
     OkResponse,
     QuestionRequest,
     QuestionResponse,
+    RouteOut,
+    RouteRequestIn,
     SearchRequest,
+    route_out,
 )
+from src.domain.campus import Route, generate_rooms
 from src.domain.clarification import ClarificationRequest, KnownFact
 from src.domain.data import Data
 from src.domain.division import divisions_by_slug
+from src.services.campus_service import CampusService
+from src.use_cases.build_route import BuildRoute
 from src.use_cases.new_data import NewData
 from src.use_cases.question import Question
 from src.use_cases.remove_data import RemoveDataById
@@ -56,6 +64,9 @@ async def ask_question(
     if isinstance(answer, ClarificationRequest):
         logger.info("POST /question: нужно уточнение поля %s", answer.field)
         return QuestionResponse(clarification=ClarificationOut(field=answer.field, question=answer.question))
+    if isinstance(answer, Route):
+        logger.info("POST /question: маршрут %s -> %s", answer.from_label, answer.to_label)
+        return QuestionResponse(answer=answer.text(), route=route_out(answer))
 
     # место считаем от готового ответа, а не храним в кэше: вычисляется детерминированно и дёшево
     location = await resolve_location.execute(payload.question, answer)
@@ -111,3 +122,51 @@ async def delete_data(id_: int, use_case: RemoveDataById = Depends(get_remove_da
     logger.info("DELETE /data/%s", id_)
     ok = await use_case.execute(id_)
     return OkResponse(ok=ok)
+
+
+@router.get("/campus")
+async def get_campuses(campus_service: CampusService = Depends(get_campus_service)) -> list[dict]:
+    """Данные для 3D-карты: корпуса, переходы, лестницы, места, входы, улицы + раскладка кабинетов.
+    Кабинеты компактно: {корпус: [[номер, этаж, x1, y1, x2, y2, подпись|null], ...]}."""
+    result = []
+    for campus in campus_service.list():
+        result.append(
+            {
+                "id": campus.id,
+                "title": campus.title,
+                "address": campus.address,
+                "scale": campus.scale,
+                "buildings": [
+                    {"id": b.id, "name": b.name, "label": b.label, "floors": b.floors, "wings": b.wings}
+                    for b in campus.buildings
+                ],
+                "bridges": [
+                    {"from": b.from_building, "to": b.to_building, "floors": b.floors, "rect": b.rect}
+                    for b in campus.bridges
+                ],
+                "stairs": [{"building": s.building, "at": s.at} for s in campus.stairs],
+                "places": [
+                    {"id": p.id, "kind": p.kind, "building": p.building, "floor": p.floor, "label": p.label, "at": p.at}
+                    for p in campus.places
+                ],
+                "entrances": [{"building": e.building, "at": e.at, "dir": e.dir} for e in campus.entrances],
+                "streets": [{"name": s.name, "rect": s.rect} for s in campus.streets],
+                "rooms": {
+                    b.id: [
+                        [r.number, r.floor, *(round(v, 1) for v in r.rect), r.label]
+                        for r in generate_rooms(campus, b)
+                    ]
+                    for b in campus.buildings
+                },
+            }
+        )
+    return result
+
+
+@router.post("/route", response_model=RouteOut)
+async def build_route(payload: RouteRequestIn, use_case: BuildRoute = Depends(get_build_route_use_case)) -> RouteOut:
+    logger.info("POST /route: %s -> %s", payload.source, payload.target)
+    route = await use_case.execute(payload.source, payload.target)
+    if route is None:
+        raise HTTPException(status_code=404, detail="Не удалось построить маршрут: место не найдено на карте")
+    return route_out(route)

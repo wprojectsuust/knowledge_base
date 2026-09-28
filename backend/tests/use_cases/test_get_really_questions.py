@@ -1,4 +1,5 @@
 from src.domain.schedule import ScheduleRequest
+from src.domain.route import RouteRequest
 from src.domain.clarification import ClarificationRequest
 from src.use_cases.get_really_questions import GetReallyQuestions
 
@@ -66,3 +67,22 @@ async def test_prompt_asks_to_normalize_group_and_not_to_clarify_how_to_question
     assert "ТОП-106Б" in fake_llm_service.last_prompt  # пример приведения группы к формату справочника
     # фраза встречается дважды: в самом сообщении и как пример "не уточнять" в инструкции
     assert fake_llm_service.last_prompt.lower().count("как узнать расписание своей группы") >= 2
+
+
+async def test_detects_route_request_from_marker(fake_llm_service) -> None:
+    fake_llm_service.response = "route: kpp -> 7-404"
+    use_case = GetReallyQuestions(fake_llm_service)
+
+    result = await use_case.execute(question="как пройти в 7-404")
+
+    assert result == RouteRequest(source="kpp", target="7-404")
+
+
+async def test_prompt_lists_known_places_for_routes(fake_llm_service) -> None:
+    fake_llm_service.response = "[]"
+    use_case = GetReallyQuestions(fake_llm_service, places_hint="Библиотека -> place:library")
+
+    await use_case.execute(question="как пройти в библиотеку")
+
+    assert "route:" in fake_llm_service.last_prompt
+    assert "place:library" in fake_llm_service.last_prompt
