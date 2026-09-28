@@ -21,6 +21,7 @@ from src.use_cases.get_schedule import GetSchedule
 from src.use_cases.new_data import NewData
 from src.use_cases.question import Question
 from src.use_cases.remove_data import RemoveDataById
+from src.use_cases.resolve_location import ResolveLocation
 from src.use_cases.search_data import SearchDataById, SearchDataByListOfStr
 
 
@@ -132,3 +133,7 @@ def get_question_use_case() -> Question:
         get_question_cache_service(),
         get_get_schedule_use_case(),
     )
+
+
+def get_resolve_location_use_case() -> ResolveLocation:
+    return ResolveLocation()

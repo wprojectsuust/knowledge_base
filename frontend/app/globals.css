@@ -601,6 +601,237 @@ input {
   background: rgba(40, 62, 170, 0.5);
 }
 
+/* ---------- печать ответа ---------- */
+
+.caret {
+  display: inline-block;
+  width: 7px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -2px;
+  background: var(--accent-2);
+  animation: blink 0.8s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ---------- окно карты: из угла в центр ---------- */
+
+.venue-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(3, 7, 24, 0.55);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+
+.venue-backdrop.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.venue-map {
+  --w: 280px;
+  --h: 180px;
+  position: fixed;
+  z-index: 50;
+  width: var(--w);
+  height: var(--h);
+  left: calc(100vw - var(--w) - 28px);
+  top: calc(100vh - var(--h) - 28px);
+  overflow: hidden;
+  border-radius: 14px;
+  background: linear-gradient(160deg, #0f1f66, #070f38);
+  border: 1px solid var(--border-strong);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 0 40px rgba(77, 107, 255, 0.35);
+  cursor: pointer;
+  transition:
+    left 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    top 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.5s ease,
+    transform 0.5s ease;
+}
+
+.venue-map.phase-hidden {
+  opacity: 0;
+  transform: translateY(24px) scale(0.9);
+}
+
+.venue-map.phase-center {
+  --w: min(88vw, 1080px);
+  --h: min(78vh, 660px);
+  left: calc((100vw - var(--w)) / 2);
+  top: calc((100vh - var(--h)) / 2);
+  cursor: default;
+}
+
+.venue-canvas {
+  position: absolute;
+  inset: 0;
+  perspective: 700px;
+  overflow: hidden;
+}
+
+/* перспективная «земля» - заглушка вместо карты */
+.venue-grid {
+  position: absolute;
+  left: -50%;
+  right: -50%;
+  top: 10%;
+  bottom: -60%;
+  background-image:
+    linear-gradient(rgba(120, 150, 255, 0.22) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(120, 150, 255, 0.22) 1px, transparent 1px);
+  background-size: 48px 48px;
+  transform: rotateX(62deg);
+  transform-origin: center top;
+  mask-image: radial-gradient(ellipse at 50% 30%, #000 30%, transparent 75%);
+  animation: grid-move 6s linear infinite;
+}
+
+@keyframes grid-move {
+  to {
+    background-position: 0 48px;
+  }
+}
+
+.venue-pin {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  transform: translate(-50%, -100%);
+  color: #fff;
+  filter: drop-shadow(0 0 12px rgba(120, 150, 255, 0.9));
+}
+
+.phase-center .venue-pin {
+  animation: pin-drop 0.7s 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes pin-drop {
+  from {
+    transform: translate(-50%, -260%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, -100%);
+    opacity: 1;
+  }
+}
+
+.venue-pulse {
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  width: 18px;
+  height: 18px;
+  margin-left: -9px;
+  border-radius: 50%;
+  background: rgba(120, 150, 255, 0.6);
+  animation: pulse 1.8s ease-out infinite;
+}
+
+@keyframes pulse {
+  from {
+    transform: scale(0.5);
+    opacity: 1;
+  }
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.venue-label {
+  position: absolute;
+  left: 14px;
+  bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(5, 11, 36, 0.75);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+  transition: all 0.6s ease;
+}
+
+.phase-center .venue-label {
+  left: 50%;
+  bottom: auto;
+  top: calc(48% + 24px);
+  transform: translateX(-50%);
+  padding: 12px 20px;
+  text-align: center;
+}
+
+.venue-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.phase-center .venue-title {
+  font-size: 22px;
+}
+
+.venue-details {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.phase-center .venue-details {
+  font-size: 15px;
+}
+
+.venue-stub {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 22px;
+  margin: 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted-2);
+}
+
+.venue-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: rgba(5, 11, 36, 0.7);
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .venue-map,
+  .venue-backdrop {
+    transition: none;
+  }
+  .venue-grid,
+  .venue-pulse,
+  .phase-center .venue-pin {
+    animation: none;
+  }
+}
+
 /* ---------- страница «Задать вопрос» ---------- */
 
 .ask-empty {

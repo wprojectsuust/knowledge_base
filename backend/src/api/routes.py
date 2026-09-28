@@ -8,15 +8,26 @@ from src.api.dependencies import (
     get_new_data_use_case,
     get_question_use_case,
     get_remove_data_use_case,
+    get_resolve_location_use_case,
     get_search_data_by_id_use_case,
     get_search_data_use_case,
 )
-from src.api.schemas import DataCreated, DataIn, DataOut, OkResponse, QuestionRequest, QuestionResponse, SearchRequest
+from src.api.schemas import (
+    DataCreated,
+    DataIn,
+    DataOut,
+    LocationOut,
+    OkResponse,
+    QuestionRequest,
+    QuestionResponse,
+    SearchRequest,
+)
 from src.domain.data import Data
 from src.domain.division import divisions_by_slug
 from src.use_cases.new_data import NewData
 from src.use_cases.question import Question
 from src.use_cases.remove_data import RemoveDataById
+from src.use_cases.resolve_location import ResolveLocation
 from src.use_cases.search_data import SearchDataById, SearchDataByListOfStr
 
 logger = logging.getLogger(__name__)
@@ -33,12 +44,21 @@ async def upload_page() -> HTMLResponse:
 
 @router.post("/question", response_model=QuestionResponse)
 async def ask_question(
-    payload: QuestionRequest, use_case: Question = Depends(get_question_use_case)
+    payload: QuestionRequest,
+    use_case: Question = Depends(get_question_use_case),
+    resolve_location: ResolveLocation = Depends(get_resolve_location_use_case),
 ) -> QuestionResponse:
     logger.info("POST /question: %s", payload.question)
     answer = await use_case.execute(payload.question)
-    logger.info("POST /question: ответ готов (%d символов)", len(answer))
-    return QuestionResponse(answer=answer)
+    # место считаем от готового ответа, а не храним в кэше: вычисляется детерминированно и дёшево
+    location = await resolve_location.execute(payload.question, answer)
+    logger.info("POST /question: ответ готов (%d символов), место=%s", len(answer), location)
+    return QuestionResponse(
+        answer=answer,
+        location=LocationOut(building=location.building, room=location.room, floor=location.floor)
+        if location
+        else None,
+    )
 
 
 @router.post("/search", response_model=list[DataOut])

@@ -5,8 +5,15 @@ class QuestionRequest(BaseModel):
     question: str
 
 
+class LocationOut(BaseModel):
+    building: str
+    room: str | None = None
+    floor: int | None = None
+
+
 class QuestionResponse(BaseModel):
     answer: str
+    location: LocationOut | None = None
 
 
 class SearchRequest(BaseModel):

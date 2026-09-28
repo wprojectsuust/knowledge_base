@@ -19,7 +19,9 @@ import {
   TentIcon,
   ZapIcon,
 } from "@/components/Icons";
-import { askQuestion, extractSources, stripSourceTags } from "@/lib/api";
+import { Typewriter } from "@/components/Typewriter";
+import { VenueMap } from "@/components/VenueMap";
+import { askQuestion, extractSources, stripSourceTags, type Location } from "@/lib/api";
 
 const POPULAR_QUESTIONS = [
   "Где находится деканат?",
@@ -70,6 +72,8 @@ export default function HomePage() {
   const [question, setQuestion] = useState("");
   const [askedQuestion, setAskedQuestion] = useState<string | null>(null);
   const [answer, setAnswer] = useState<string | null>(null);
+  const [location, setLocation] = useState<Location | null>(null);
+  const [typed, setTyped] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -80,10 +84,14 @@ export default function HomePage() {
     setStatus("loading");
     setErrorMessage(null);
     setAnswer(null);
+    setLocation(null);
+    setTyped(false);
     setAskedQuestion(trimmed);
 
     try {
-      setAnswer(await askQuestion(trimmed));
+      const result = await askQuestion(trimmed);
+      setAnswer(result.answer);
+      setLocation(result.location);
       setStatus("idle");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Не удалось получить ответ.");
@@ -98,6 +106,7 @@ export default function HomePage() {
 
   function reset() {
     setAnswer(null);
+    setLocation(null);
     setAskedQuestion(null);
     setQuestion("");
     setStatus("idle");
@@ -189,7 +198,9 @@ export default function HomePage() {
               </p>
             )}
 
-            {answer && status === "idle" && <p className="answer-text">{answerText}</p>}
+            {answer && status === "idle" && (
+                <Typewriter key={answer} className="answer-text" text={answerText} onDone={() => setTyped(true)} />
+              )}
 
             <SourcesList sources={sources} emptyText="Появятся вместе с ответом" />
 
@@ -241,6 +252,10 @@ export default function HomePage() {
           ))}
         </div>
       </section>
+
+      {location && answer && (
+        <VenueMap key={answer} location={location} ready={typed} onDismiss={() => setLocation(null)} />
+      )}
     </>
   );
 }

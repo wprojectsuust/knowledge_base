@@ -1,10 +1,17 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
-export type AskQuestionResponse = {
-  answer: string;
+export type Location = {
+  building: string;
+  room: string | null;
+  floor: number | null;
 };
 
-export async function askQuestion(question: string): Promise<string> {
+export type AskQuestionResponse = {
+  answer: string;
+  location: Location | null;
+};
+
+export async function askQuestion(question: string): Promise<AskQuestionResponse> {
   const response = await fetch(`${API_BASE_URL}/question`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -17,7 +24,7 @@ export async function askQuestion(question: string): Promise<string> {
   }
 
   const data: AskQuestionResponse = await response.json();
-  return data.answer;
+  return { answer: data.answer, location: data.location ?? null };
 }
 
 const SOURCE_PATTERN = /\[Источник:\s*([^\]]+)]/gi;

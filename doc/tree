@@ -22,6 +22,7 @@
 │   │   │   ├── __init__.py
 │   │   │   ├── data.py
 │   │   │   ├── division.py
+│   │   │   ├── location.py
 │   │   │   └── schedule.py
 │   │   ├── repositories
 │   │   │   ├── __init__.py
@@ -54,6 +55,7 @@
 │   │   │   ├── new_data.py
 │   │   │   ├── question.py
 │   │   │   ├── remove_data.py
+│   │   │   ├── resolve_location.py
 │   │   │   └── search_data.py
 │   │   ├── __init__.py
 │   │   ├── config.py
@@ -88,6 +90,7 @@
 │   │   │   ├── test_new_data.py
 │   │   │   ├── test_question.py
 │   │   │   ├── test_remove_data.py
+│   │   │   ├── test_resolve_location.py
 │   │   │   └── test_search_data.py
 │   │   └── conftest.py
 │   ├── .dockerignore
@@ -117,7 +120,9 @@
 │   │   ├── QuickAccessCard.tsx
 │   │   ├── Sidebar.tsx
 │   │   ├── SourcesList.tsx
-│   │   └── UserMenu.tsx
+│   │   ├── Typewriter.tsx
+│   │   ├── UserMenu.tsx
+│   │   └── VenueMap.tsx
 │   ├── lib
 │   │   └── api.ts
 │   ├── public
@@ -140,21 +145,21 @@
 
 Строки кода
 ============================================================
-Всего файлов: 105
-Всего строк: 24184
+Всего файлов: 110
+Всего строк: 24759
 
 По расширениям:
   .png                 12018
   .json                5884
-  .py                  3728
-  .css                 858
-  .tsx                 759
-  (без расширения)     309
+  .py                  3893
+  .css                 1089
+  .tsx                 933
+  (без расширения)     307
   .html                216
   .md                  200
   .js                  61
+  .ts                  48
   .toml                41
-  .ts                  41
   .yml                 39
   .example             23
   .mjs                 7

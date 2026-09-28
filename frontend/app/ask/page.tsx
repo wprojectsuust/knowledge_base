@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { BookmarkLockIcon, SearchIcon, SendIcon, SparkleIcon, TentIcon } from "@/components/Icons";
 import { SourcesList } from "@/components/SourcesList";
-import { askQuestion, extractSources, stripSourceTags } from "@/lib/api";
+import { Typewriter } from "@/components/Typewriter";
+import { VenueMap } from "@/components/VenueMap";
+import { askQuestion, extractSources, stripSourceTags, type Location } from "@/lib/api";
 
 const SUGGESTIONS = [
   "Где находится деканат?",
@@ -16,7 +18,9 @@ type Exchange = {
   id: number;
   question: string;
   answer: string | null;
+  location: Location | null;
   error: string | null;
+  typed: boolean;
 };
 
 export default function AskPage() {
@@ -34,7 +38,7 @@ export default function AskPage() {
     if (!trimmed || loading) return;
 
     const id = Date.now();
-    setExchanges((prev) => [...prev, { id, question: trimmed, answer: null, error: null }]);
+    setExchanges((prev) => [...prev, { id, question: trimmed, answer: null, location: null, error: null, typed: false }]);
     setQuestion("");
     setLoading(true);
 
@@ -42,7 +46,8 @@ export default function AskPage() {
       setExchanges((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
 
     try {
-      update({ answer: await askQuestion(trimmed) });
+      const result = await askQuestion(trimmed);
+      update({ answer: result.answer, location: result.location });
     } catch (error) {
       update({ error: error instanceof Error ? error.message : "Не удалось получить ответ." });
     } finally {
@@ -70,6 +75,10 @@ export default function AskPage() {
       </button>
     </form>
   );
+
+  // карту показываем только для самого свежего ответа, если в нём есть место
+  const last = exchanges[exchanges.length - 1];
+  const lastWithLocation = last?.location ? last : null;
 
   if (exchanges.length === 0) {
     return (
@@ -126,7 +135,11 @@ export default function AskPage() {
                 {item.error && <p className="answer-text error-text">{item.error}</p>}
                 {item.answer !== null && (
                   <>
-                    <p className="answer-text">{stripSourceTags(item.answer)}</p>
+                    <Typewriter
+                      className="answer-text"
+                      text={stripSourceTags(item.answer)}
+                      onDone={() => setExchanges((prev) => prev.map((x) => (x.id === item.id ? { ...x, typed: true } : x)))}
+                    />
                     <SourcesList sources={extractSources(item.answer)} />
                   </>
                 )}
@@ -138,6 +151,17 @@ export default function AskPage() {
       </div>
 
       <div className="ask-composer">{searchForm}</div>
+
+      {lastWithLocation && (
+        <VenueMap
+          key={lastWithLocation.id}
+          location={lastWithLocation.location!}
+          ready={lastWithLocation.typed}
+          onDismiss={() =>
+            setExchanges((prev) => prev.map((x) => (x.id === lastWithLocation.id ? { ...x, location: null } : x)))
+          }
+        />
+      )}
     </section>
   );
 }
