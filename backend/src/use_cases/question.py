@@ -71,7 +71,11 @@ class Question:
             request = really_questions_or_schedule
             route = await self._build_route.execute(request.source, request.target) if self._build_route else None
             if route is None:
-                return "Не смог построить маршрут: не нашёл такое место на карте кампуса. Уточните корпус и кабинет, например 7-404."
+                place = request.target.removeprefix("place:")
+                return (
+                    f"Не нашёл «{place}» на карте кампуса. Маршрут можно проложить до кабинета "
+                    "(корпус-кабинет), корпуса, КПП, спортзала, буфета, библиотеки и других отмеченных мест."
+                )
             # маршрут не кэшируем: строится мгновенно и детерминированно
             return route
 

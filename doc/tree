@@ -89,6 +89,7 @@
 │   │   │   ├── test_postgres_question_cache_repository.py
 │   │   │   └── test_postgres_schedule_cache_repository.py
 │   │   ├── services
+│   │   │   ├── test_campus_service.py
 │   │   │   ├── test_embedding_service.py
 │   │   │   └── test_llm_service.py
 │   │   ├── stress
@@ -165,13 +166,13 @@
 
 Строки кода
 ============================================================
-Всего файлов: 128
-Всего строк: 30083
+Всего файлов: 129
+Всего строк: 30154
 
 По расширениям:
   .png                 12018
   .json                7576
-  .py                  5451
+  .py                  5522
   .tsx                 1851
   .css                 1407
   .jpg                 599

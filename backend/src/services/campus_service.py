@@ -27,6 +27,9 @@ class CampusService:
         """Справка для LLM: какие места есть на картах и как их называть в запросе маршрута."""
         lines = []
         for campus in self.list():
+            for building in campus.buildings:
+                name = f"Корпус {building.id}" if building.id.isdigit() else building.name
+                lines.append(f"- {name} ({campus.title}) -> {building.id}")
             for place in campus.places:
                 lines.append(f"- {place.label} (корпус {place.building}, {place.floor} этаж) -> place:{place.id}")
             for room in campus.rooms:

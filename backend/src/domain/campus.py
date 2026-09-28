@@ -177,7 +177,8 @@ def parse_target(spec: str) -> RouteTarget | None:
         return RouteTarget(kind="room", building=match["building"].lower(), room=match["room"].lower())
     if match := _FLOOR_RE.match(value):
         return RouteTarget(kind="floor", building=match["building"].lower(), floor=int(match["floor"]))
-    if re.fullmatch(r"[\wа-яё]{1,6}", lowered) and any(ch.isdigit() for ch in lowered):
+    # id корпуса: "7", "ф1", "sport"; есть ли такой на карте - решает навигатор
+    if re.fullmatch(r"[\wа-яё]{1,12}", lowered):
         return RouteTarget(kind="building", building=lowered)
     return None
 
@@ -516,7 +517,13 @@ class CampusNavigator:
         building = self.campus.building(building_id or "")
         if building is None:
             return ""
-        return "КПП" if building.id == "kpp" else f"корпус {building.id}" if building.id.isdigit() else building.name
+        if building.id == "kpp":
+            return "КПП"
+        if building.id.isdigit():
+            return f"корпус {building.id}"
+        # "Спортзал" -> "спортзал": имя идёт внутри фразы ("Войдите в спортзал")
+        name = building.label or building.name
+        return name[0].lower() + name[1:]
 
     def _label(self, target: RouteTarget, node: _Node) -> str:
         if target.kind == "kpp":

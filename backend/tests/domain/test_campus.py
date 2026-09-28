@@ -17,6 +17,7 @@ def navigator() -> CampusNavigator:
         ("7-404", RouteTarget(kind="room", building="7", room="404")),
         ("3-106Б", RouteTarget(kind="room", building="3", room="106б")),
         ("7", RouteTarget(kind="building", building="7")),
+        ("sport", RouteTarget(kind="building", building="sport")),
         ("7@3", RouteTarget(kind="floor", building="7", floor=3)),
         ("place:library", RouteTarget(kind="place", place="library")),
         ("place:cafe", RouteTarget(kind="place", place="cafe")),
@@ -90,3 +91,11 @@ def test_outdoor_legs_do_not_cross_buildings(navigator) -> None:
 
 def test_unknown_target_gives_no_route(navigator) -> None:
     assert navigator.route(parse_target("kpp"), parse_target("42-101")) is None
+
+
+def test_route_to_non_numbered_building(navigator) -> None:
+    route = navigator.route(parse_target("kpp"), parse_target("sport"))
+
+    assert route is not None
+    assert route.to_label == "спортзал"
+    assert "Войдите в спортзал" in route.text()
