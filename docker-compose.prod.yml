@@ -1,13 +1,18 @@
 # Прод-оверлей для сервера за nginx (karrad.tech/uunit):
-#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build
 # Наружу ничего не публикуем напрямую - только на localhost, дальше проксирует nginx.
 services:
   backend:
     image: uunit-backend:latest
+    restart: unless-stopped
     ports: !override
       - "127.0.0.1:5001:8000"
+    volumes:
+      # модель эмбеддингов не перекачивается при каждом пересоздании контейнера
+      - hf_cache:/root/.cache/huggingface
   frontend:
     image: uunit-frontend-prod:latest
+    restart: unless-stopped
     build:
       args:
         BASE_PATH: /uunit
@@ -15,4 +20,8 @@ services:
     ports: !override
       - "127.0.0.1:5000:3000"
   postgres:
+    restart: unless-stopped
     ports: !reset []
+
+volumes:
+  hf_cache:
