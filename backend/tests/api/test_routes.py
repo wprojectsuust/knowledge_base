@@ -285,7 +285,7 @@ def test_ask_question_returns_503_with_readable_message_when_llm_is_overloaded()
     assert response.status_code == 503
     assert "перегружен" in response.json()["detail"]
     # CORS-заголовок на месте - браузер покажет сообщение, а не «ошибку CORS»
-    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+    assert response.headers["access-control-allow-origin"] in ("*", "http://localhost:3000")
 
 
 def test_news_import_endpoint_reports_what_was_imported() -> None:
@@ -302,3 +302,16 @@ def test_news_import_endpoint_reports_what_was_imported() -> None:
 
     assert response.status_code == 200
     assert response.json() == {"imported": 3, "skipped": 10, "failed": 1}
+
+
+def test_cors_allows_any_origin_by_default() -> None:
+    # фронт может открываться по IP машины или другому адресу, не только с localhost:3000
+    client = _client_with_overrides({})
+
+    response = client.options(
+        "/question",
+        headers={"Origin": "http://192.168.1.50:3000", "Access-Control-Request-Method": "POST"},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] in ("*", "http://192.168.1.50:3000")

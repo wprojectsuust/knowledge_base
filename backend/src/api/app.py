@@ -86,10 +86,12 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(title="УУНиТ Knowledge Base", lifespan=lifespan)
 
-    frontend_origin = os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000")
+    # "*" - любой источник (фронт открывают по IP машины, с телефона в той же сети и т.п.);
+    # либо список адресов через запятую. Куки/авторизации нет, поэтому "*" безопасен.
+    origins = [o.strip() for o in os.environ.get("FRONTEND_ORIGIN", "*").split(",") if o.strip()]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[frontend_origin],
+        allow_origins=origins or ["*"],
         allow_methods=["*"],
         allow_headers=["*"],
     )
