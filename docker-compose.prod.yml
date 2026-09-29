@@ -1,8 +1,16 @@
 # Прод-оверлей для сервера за nginx (karrad.tech/uunit):
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build
 # Наружу ничего не публикуем напрямую - только на localhost, дальше проксирует nginx.
+x-logging: &logging
+  # логи контейнеров не растут бесконечно: на сервере мало диска
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   backend:
+    logging: *logging
     image: uunit-backend:latest
     restart: unless-stopped
     ports: !override
@@ -11,6 +19,7 @@ services:
       # модель эмбеддингов не перекачивается при каждом пересоздании контейнера
       - hf_cache:/root/.cache/huggingface
   frontend:
+    logging: *logging
     image: uunit-frontend-prod:latest
     restart: unless-stopped
     build:
@@ -20,6 +29,7 @@ services:
     ports: !override
       - "127.0.0.1:5000:3000"
   postgres:
+    logging: *logging
     restart: unless-stopped
     ports: !reset []
 

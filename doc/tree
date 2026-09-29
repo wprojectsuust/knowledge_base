@@ -2,6 +2,10 @@
 ============================================================
 
 .
+├── "knowledge
+│   └── raw
+│       ├── \320\237\320\276\320\273\320\276\320\266\320\265\320\275\320\270\320\265_\320\276_\320\234\320\260\321\202\320\265\321\200\320\270\320\260\320\273\321\214\320\275\320\276\320\271_\320\277\320\276\320\274\320\276\321\211\320\270_\320\276\321\202_17_06_2026_1.pdf"
+│       └── \320\237\321\200\320\270\320\272\320\260\320\267_\320\243\320\243\320\235\320\270\320\242_\320\276\321\202_29_12_2023_\342\204\226_3409_\320\241\321\202\320\270\320\277\320\265\320\275\320\264\320\270\320\260\320\273\321\214\320\275\320\276\320\265_\320\276\320\261\320\265\321\201\320\277\320\265\321\207\320\265\320\275\320\270\320\265.pdf"
 ├── .githooks
 │   └── pre-commit
 ├── .github
@@ -175,6 +179,55 @@
 │   ├── package-lock.json
 │   ├── package.json
 │   └── tsconfig.json
+├── knowledge
+│   ├── raw
+│   │   ├── data
+│   │   │   ├── 01_administration
+│   │   │   │   ├── admissions.md
+│   │   │   │   ├── campus_and_buildings.md
+│   │   │   │   └── rectorate.md
+│   │   │   ├── 02_institutes_and_faculties
+│   │   │   │   ├── humanities_and_social
+│   │   │   │   │   ├── fbfvizh.md
+│   │   │   │   │   ├── igsn.md
+│   │   │   │   │   ├── iigu.md
+│   │   │   │   │   ├── ineb.md
+│   │   │   │   │   └── law_institute.md
+│   │   │   │   ├── it_and_natural_sciences
+│   │   │   │   │   ├── fti.md
+│   │   │   │   │   ├── iimrt.md
+│   │   │   │   │   ├── ikhzchs.md
+│   │   │   │   │   └── ipch.md
+│   │   │   │   └── technical
+│   │   │   │       ├── fadet.md
+│   │   │   │       ├── ieti.md
+│   │   │   │       ├── itm.md
+│   │   │   │       └── umpo_engineering.md
+│   │   │   ├── 03_specialties
+│   │   │   │   ├── bachelor_specialties.md
+│   │   │   │   └── master_programs.md
+│   │   │   ├── 04_student_life
+│   │   │   │   ├── dormitories.md
+│   │   │   │   ├── material_assistance_regulation_2026.md
+│   │   │   │   ├── military_center_vuc.md
+│   │   │   │   ├── scholarships_and_benefits.md
+│   │   │   │   └── student_organizations_and_campus_guide.md
+│   │   │   ├── 05_branches
+│   │   │   │   └── branches.md
+│   │   │   ├── 06_faq
+│   │   │   │   ├── applicant_faq.md
+│   │   │   │   ├── faq_pairs.json
+│   │   │   │   └── student_faq.md
+│   │   │   └── uunit_entities.json
+│   │   ├── 001_uunit_ekosistema.txt
+│   │   ├── 002_batch_fakty_matpom_kanaly.txt
+│   │   ├── 003_stipendii_pgas_filialy.txt
+│   │   ├── 004_data_rar_ingested.txt
+│   │   ├── 005_photos_school_of_mentors.txt
+│   │   └── 005_photos_school_of_mentors_notes.md
+│   ├── ingest_md.py
+│   ├── kb.jsonl
+│   └── kb.py
 ├── scripts
 │   └── tree.py
 ├── .env.example
@@ -186,21 +239,23 @@
 
 Строки кода
 ============================================================
-Всего файлов: 146
-Всего строк: 31404
+Всего файлов: 185
+Всего строк: 37669
 
 По расширениям:
   .png                 12018
-  .json                7576
-  .py                  6412
+  .json                8040
+  .py                  6532
+  .md                  5466
   .tsx                 1919
   .css                 1420
   .jpg                 599
-  (без расширения)     354
+  (без расширения)     357
   .ts                  325
+  .jsonl               319
   .html                247
-  .md                  210
-  .yml                 177
+  .yml                 198
+  .txt                 82
   .js                  61
   .toml                41
   .example             36

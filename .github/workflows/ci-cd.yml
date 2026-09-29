@@ -94,6 +94,17 @@ jobs:
       - name: Код и compose-файлы на сервер (.env не трогается)
         run: git archive --format=tar HEAD | ssh prod 'mkdir -p /opt/uunit && tar x -C /opt/uunit'
 
+      - name: Хватит ли места на сервере
+        # docker (хранилище containerd) держит слои образа дважды; при переполнении диска страдают
+        # все сервисы на сервере, поэтому лучше остановиться заранее
+        run: |
+          free_mb=$(ssh prod "df --output=avail -BM / | tail -1 | tr -dc 0-9")
+          echo "свободно на сервере: ${free_mb} МБ"
+          if [ "$free_mb" -lt 1500 ]; then
+            echo "::error::На сервере меньше 1,5 ГБ свободного места - деплой остановлен, чтобы не забить диск"
+            exit 1
+          fi
+
       - name: Образы на сервер
         # слои, которые уже есть на сервере (torch и т.п.), docker load не дублирует
         run: docker save uunit-backend:latest uunit-frontend-prod:latest | gzip -1 | ssh prod 'gunzip | docker load'
