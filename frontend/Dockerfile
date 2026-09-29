@@ -10,6 +10,8 @@ COPY . .
 # пусто - фронт ходит на тот же хост, что и страница, порт 8000 (см. lib/api.ts)
 ARG NEXT_PUBLIC_API_BASE_URL=
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+ARG BASE_PATH=
+ENV BASE_PATH=$BASE_PATH
 RUN npm run build
 
 FROM node:20-slim AS runner

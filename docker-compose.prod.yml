@@ -1,0 +1,18 @@
+# Прод-оверлей для сервера за nginx (karrad.tech/uunit):
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Наружу ничего не публикуем напрямую - только на localhost, дальше проксирует nginx.
+services:
+  backend:
+    image: uunit-backend:latest
+    ports: !override
+      - "127.0.0.1:5001:8000"
+  frontend:
+    image: uunit-frontend-prod:latest
+    build:
+      args:
+        BASE_PATH: /uunit
+        NEXT_PUBLIC_API_BASE_URL: /uunit/api
+    ports: !override
+      - "127.0.0.1:5000:3000"
+  postgres:
+    ports: !reset []
