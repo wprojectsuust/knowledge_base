@@ -43,8 +43,13 @@ class LLMProvider(Protocol):
         ...
 
 
-class GeminiProvider:
-    """Провайдер поверх Gemini через OpenAI-совместимый эндпоинт.
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+DEFAULT_GEMINI_MODELS = "gemini-3.6-flash,gemini-2.5-flash,gemini-flash-latest,gemini-3.1-flash-lite"
+
+
+class OpenAICompatibleProvider:
+    """Провайдер поверх любого OpenAI-совместимого API (Gemini, claudehub/Qwen и т.п.) - адрес,
+    ключ и модели задаются в .env (LLM_BASE_URL, LLM_API_KEY, LLM_MODEL).
 
     model может быть списком через запятую: первая - основная, остальные - запасные.
     Бесплатный тариф Gemini то перегружен (503), то упирается в лимит запросов (429), поэтому:
@@ -53,7 +58,7 @@ class GeminiProvider:
       она остывает, запросы сразу идут на запасную - не долбим исчерпанный лимит;
     - всё это укладывается в общий бюджет времени LLM_TOTAL_BUDGET_SECONDS."""
 
-    def __init__(self, api_key: str, model: str, proxy_url: str | None = None) -> None:
+    def __init__(self, api_key: str, model: str, proxy_url: str | None = None, base_url: str = GEMINI_BASE_URL) -> None:
         import httpx
         from openai import OpenAI
 
@@ -61,7 +66,7 @@ class GeminiProvider:
         http_client = httpx.Client(proxy=proxy_url, timeout=timeout) if proxy_url else httpx.Client(timeout=timeout)
         self._client = OpenAI(
             api_key=api_key,
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+            base_url=base_url,
             http_client=http_client,
             # повторы - свои (см. generate): встроенные в openai повторяют и 429, а это только
             # сжигает лимит и множит запросы
@@ -70,7 +75,7 @@ class GeminiProvider:
         self._models = [name.strip() for name in model.split(",") if name.strip()]
         self._cooling_until: dict[str, float] = {}
         logger.info(
-            "GeminiProvider: инициализирован, модели=%s, прокси=%s", self._models, "да" if proxy_url else "нет"
+            "LLM: инициализирован, адрес=%s, модели=%s, прокси=%s", base_url, self._models, "да" if proxy_url else "нет"
         )
 
     def generate(self, prompt: str) -> str:
@@ -82,14 +87,14 @@ class GeminiProvider:
 
         for model in self._models:
             if self._cooling_until.get(model, 0) > time.monotonic():
-                logger.debug("Gemini %s остывает после 429, пропускаю", model)
+                logger.debug("LLM %s остывает после 429, пропускаю", model)
                 continue
             # бюджет ограничивает только повторы и запасные модели - первую попытку делаем всегда
             if last_error is not None and not budget_left():
-                logger.warning("Gemini: бюджет %.0f с исчерпан, запасные модели не пробую", config.LLM_TOTAL_BUDGET_SECONDS)
+                logger.warning("LLM: бюджет %.0f с исчерпан, запасные модели не пробую", config.LLM_TOTAL_BUDGET_SECONDS)
                 break
             for attempt in range(1 + config.LLM_MAX_RETRIES):
-                logger.debug("Gemini запрос: model=%s попытка=%d prompt=%s", model, attempt + 1, preview(prompt))
+                logger.debug("LLM запрос: model=%s попытка=%d prompt=%s", model, attempt + 1, preview(prompt))
                 try:
                     response = self._client.chat.completions.create(
                         model=model,
@@ -101,18 +106,18 @@ class GeminiProvider:
                     if getattr(error, "status_code", None) == 429:
                         self._cooling_until[model] = time.monotonic() + config.LLM_RATE_LIMIT_COOLDOWN_SECONDS
                         logger.warning(
-                            "Gemini %s: лимит запросов (429), остывает %d с", model, config.LLM_RATE_LIMIT_COOLDOWN_SECONDS
+                            "LLM %s: лимит запросов (429), остывает %d с", model, config.LLM_RATE_LIMIT_COOLDOWN_SECONDS
                         )
                         break
                     if attempt < config.LLM_MAX_RETRIES and budget_left():
                         pause = 2**attempt
-                        logger.warning("Gemini %s недоступна (%s), повтор через %d с", model, error, pause)
+                        logger.warning("LLM %s недоступна (%s), повтор через %d с", model, error, pause)
                         time.sleep(pause)
                         continue
-                    logger.warning("Gemini %s недоступна: %s", model, error)
+                    logger.warning("LLM %s недоступна: %s", model, error)
                     break
                 answer = response.choices[0].message.content.strip()
-                logger.debug("Gemini ответ (%s): %s", model, preview(answer))
+                logger.debug("LLM ответ (%s): %s", model, preview(answer))
                 return answer
         if last_error is None:
             raise LLMUnavailableError("все модели упёрлись в лимит запросов и ещё остывают")
@@ -123,7 +128,7 @@ class LLMService:
     """Обёртка над LLMProvider - позволяет быстро сменить провайдера/модель,
     не трогая юз-кейсы, которые от неё зависят.
 
-    generate() асинхронный: GeminiProvider делает блокирующий сетевой вызов (openai/httpx
+    generate() асинхронный: провайдер делает блокирующий сетевой вызов (openai/httpx
     синхронные), а это самая долгая операция во всём пайплайне - без to_thread один
     медленный запрос к LLM блокировал бы event loop и все остальные запросы к серверу.
 
@@ -141,7 +146,16 @@ class LLMService:
 
     @classmethod
     def from_env(cls) -> "LLMService":
-        api_key = os.environ["GEMINI_API_KEY"]
-        model = os.environ.get("GEMINI_MODEL", "gemini-3.6-flash,gemini-2.5-flash,gemini-flash-latest,gemini-3.1-flash-lite")
-        proxy = os.environ.get("PROXY_URL")
-        return cls(GeminiProvider(api_key=api_key, model=model, proxy_url=proxy))
+        # LLM_* - основные настройки; GEMINI_* оставлены для совместимости со старыми .env
+        # LLM_* применяются только вместе с ключом - иначе целиком Gemini, чтобы ключ Gemini
+        # не ушёл на чужой адрес
+        if os.environ.get("LLM_API_KEY"):
+            api_key = os.environ["LLM_API_KEY"]
+            model = os.environ.get("LLM_MODEL") or DEFAULT_GEMINI_MODELS
+            base_url = os.environ.get("LLM_BASE_URL") or GEMINI_BASE_URL
+        else:
+            api_key = os.environ["GEMINI_API_KEY"]
+            model = os.environ.get("GEMINI_MODEL") or DEFAULT_GEMINI_MODELS
+            base_url = GEMINI_BASE_URL
+        proxy = os.environ.get("PROXY_URL") or None
+        return cls(OpenAICompatibleProvider(api_key=api_key, model=model, proxy_url=proxy, base_url=base_url))

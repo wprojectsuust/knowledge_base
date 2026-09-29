@@ -205,7 +205,7 @@ def fake_asyncpg_pool(monkeypatch: pytest.MonkeyPatch):
 
 @pytest.fixture
 def fake_openai(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
-    """Подменяет openai/httpx в sys.modules, чтобы GeminiProvider можно было
+    """Подменяет openai/httpx в sys.modules, чтобы OpenAICompatibleProvider можно было
     протестировать без реальной библиотеки. Возвращает мок chat.completions.create."""
     fake_create = MagicMock()
     fake_client_instance = MagicMock()
