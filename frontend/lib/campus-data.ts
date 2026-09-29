@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { API_BASE_URL } from "@/lib/api";
+import { apiUrl } from "@/lib/api";
 
 /**
  * Данные кампусов приходят с бэкенда (GET /campus) - там же строятся маршруты, так что
@@ -43,7 +43,7 @@ export const DEFAULT_CAMPUS_ID = "ugatu";
 let campusesPromise: Promise<Campus[]> | null = null;
 
 function fetchCampuses(): Promise<Campus[]> {
-  campusesPromise ??= fetch(`${API_BASE_URL}/campus`)
+  campusesPromise ??= fetch(apiUrl("/campus"))
     .then((response) => {
       if (!response.ok) throw new Error(`Сервер ответил ${response.status}`);
       return response.json() as Promise<Campus[]>;
