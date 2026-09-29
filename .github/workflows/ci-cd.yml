@@ -1,0 +1,113 @@
+# CI: тесты бэкенда и сборка фронта на каждый push/PR.
+# CD: push в main (после зелёного CI) -> образы собираются здесь, в GitHub, едут на сервер по SSH,
+# там docker compose up. Сам сервер ничего не собирает (1 ядро, ~1 ГБ памяти) и не ходит в GitHub.
+#
+# Секреты репозитория: DEPLOY_SSH_KEY (приватный deploy-ключ), DEPLOY_KNOWN_HOSTS, DEPLOY_HOST.
+# .env с ключами живёт только на сервере в /opt/uunit/.env.
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      # без torch/sentence-transformers/chromadb: в юнит-тестах они подменены фейками
+      - run: >
+          pip install fastapi uvicorn pydantic python-dotenv "httpx[socks]" openai asyncpg
+          beautifulsoup4 pytest pytest-cov pytest-asyncio
+      - run: python -m pytest -q
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run build
+
+  deploy:
+    needs: [backend-tests, frontend-build]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://karrad.tech/uunit/
+    env:
+      COMPOSE: docker compose -f docker-compose.yml -f docker-compose.prod.yml
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Образ бэкенда
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          load: true
+          tags: uunit-backend:latest
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+
+      - name: Образ фронта (под karrad.tech/uunit)
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          load: true
+          tags: uunit-frontend-prod:latest
+          build-args: |
+            BASE_PATH=/uunit
+            NEXT_PUBLIC_API_BASE_URL=/uunit/api
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,scope=frontend,mode=max
+
+      - name: SSH-доступ к серверу
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          printf 'Host prod\n  HostName %s\n  User root\n  IdentityFile ~/.ssh/deploy\n  ServerAliveInterval 30\n' \
+            "${{ secrets.DEPLOY_HOST }}" > ~/.ssh/config
+
+      - name: Код и compose-файлы на сервер (.env не трогается)
+        run: git archive --format=tar HEAD | ssh prod 'mkdir -p /opt/uunit && tar x -C /opt/uunit'
+
+      - name: Образы на сервер
+        # слои, которые уже есть на сервере (torch и т.п.), docker load не дублирует
+        run: docker save uunit-backend:latest uunit-frontend-prod:latest | gzip -1 | ssh prod 'gunzip | docker load'
+
+      - name: Перезапуск
+        run: |
+          ssh prod "cd /opt/uunit && $COMPOSE up -d --no-build --remove-orphans && docker image prune -f && $COMPOSE ps"
+
+      - name: Проверка, что всё поднялось
+        run: |
+          for i in $(seq 60); do
+            if curl -sf https://karrad.tech/uunit/api/campus -o /dev/null && curl -sf https://karrad.tech/uunit -o /dev/null; then
+              echo "karrad.tech/uunit отвечает"; exit 0
+            fi
+            sleep 5
+          done
+          echo "сайт не ответил за 5 минут"; ssh prod "cd /opt/uunit && $COMPOSE logs backend --tail 80"; exit 1

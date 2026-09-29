@@ -188,7 +188,7 @@
       button.textContent = "Добавляю...";
 
       try {
-        const response = await fetch("/data", {
+        const response = await fetch("data", {  // относительно: работает и на /, и под /uunit/api/
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ source, content }),
