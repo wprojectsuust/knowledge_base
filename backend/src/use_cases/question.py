@@ -8,9 +8,11 @@ from src.domain.division import detect_division
 from src.domain.plan import QuestionPlan, SearchTask
 from src.domain.route import RouteRequest
 from src.domain.schedule import ScheduleRequest
+from src.services.llm_service import LLMUnavailableError
 from src.services.question_cache_service import QuestionCacheService
 from src.use_cases.analyze_data import AnalyzeDataByLLMForUser
 from src.use_cases.build_route import BuildRoute
+from src.use_cases.compose_answer import ComposeAnswer
 from src.use_cases.get_schedule import GetSchedule
 from src.use_cases.plan_question import PlanQuestion
 from src.use_cases.search_data import SearchDataByListOfStr
@@ -39,6 +41,7 @@ class Question:
         question_cache_service: QuestionCacheService,
         get_schedule: GetSchedule,
         build_route: BuildRoute | None = None,
+        compose_answer: ComposeAnswer | None = None,
     ) -> None:
         self._plan_question = plan_question
         self._search_data = search_data
@@ -46,6 +49,7 @@ class Question:
         self._question_cache_service = question_cache_service
         self._get_schedule = get_schedule
         self._build_route = build_route
+        self._compose_answer = compose_answer
 
     @staticmethod
     def _cache_key(question: str) -> str:
@@ -84,12 +88,27 @@ class Question:
             self._route_part(plan.route),
         )
         route_text, route = route_part if route_part else (None, None)
-        text = "\n\n".join(part for part in (schedule_part, search_part, route_text) if part)
+        parts = [part for part in (schedule_part, search_part, route_text) if part]
+        text = await self._compose(question, parts, route_text)
 
         only_search = plan.schedule is None and plan.route is None
         if only_search and search_part and not history:
             await self._question_cache_service.save(cache_key, text)
         return Answer(text=text, route=route)
+
+    async def _compose(self, question: str, parts: list[str], route_text: str | None) -> str:
+        """Несколько частей - сводим в один ответ на исходный вопрос (иначе «смогу ли я поспать
+        подольше, если…» остаётся без ответа: каждая часть отвечала только на свою подзадачу).
+        Шаблонный маршрут идёт как есть, его ИИ не пересказывает."""
+        joined = "\n\n".join(parts)
+        if len(parts) < 2 or self._compose_answer is None:
+            return joined
+        try:
+            composed = await self._compose_answer.execute(question, parts)
+        except LLMUnavailableError:
+            logger.warning("Question: не удалось свести части в один ответ, отдаю их как есть")
+            return joined
+        return f"{composed}\n\n{route_text}" if route_text else composed
 
     async def _schedule_part(self, request: ScheduleRequest | None, question: str) -> str | None:
         if request is None:

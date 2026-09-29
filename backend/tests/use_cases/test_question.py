@@ -179,3 +179,69 @@ async def test_follow_up_with_history_bypasses_cache_and_reaches_planner(
 
     assert result == Answer(text="С учётом контекста.")
     assert "В корпусе 2." in planner.last_prompt
+
+
+async def test_several_parts_are_composed_into_one_answer_to_the_original_question(
+    make_question, make_fake_llm_service, indexed_sample, fake_schedule_service
+) -> None:
+    from src.use_cases.compose_answer import ComposeAnswer
+
+    fake_schedule_service.schedules[(GROUP, "2026-09-30")] = DaySchedule(
+        group=GROUP, date="2026-09-30", day_label="Среда 30.09.2026", lessons=[]
+    )
+    composer_llm = make_fake_llm_service("Да, поспать можно: пар нет. Маршрут ниже.")
+    use_case = make_question(
+        plan(
+            search={"question": "где деканат", "queries": ["где деканат"]},
+            schedule={"group": GROUP, "date": "2026-09-30", "question": "смогу ли я поспать подольше"},
+            route={"from": None, "to": "7-404"},
+        ),
+        answer="Деканат в корпусе 2.",
+    )
+    use_case._compose_answer = ComposeAnswer(composer_llm)
+
+    result = await use_case.execute("смогу ли я поспать подольше, где деканат и как пройти в 7-404")
+
+    assert result.text.startswith("Да, поспать можно: пар нет.")
+    # маршрут не пересказывается ИИ - шаблонный текст идёт как есть
+    assert "Поднимитесь по лестнице на 4 этаж" in result.text
+    assert "Деканат в корпусе 2." in composer_llm.last_prompt
+    assert "пар нет" in composer_llm.last_prompt
+
+
+async def test_single_part_is_not_recomposed(make_question, make_fake_llm_service, indexed_sample) -> None:
+    from src.use_cases.compose_answer import ComposeAnswer
+
+    composer_llm = make_fake_llm_service("не должно вызываться")
+    use_case = make_question(answer="Деканат в корпусе 2.")
+    use_case._compose_answer = ComposeAnswer(composer_llm)
+
+    await use_case.execute(test_question)
+
+    assert composer_llm.call_count == 0
+
+
+async def test_falls_back_to_joined_parts_when_composing_fails(
+    make_question, indexed_sample, fake_schedule_service
+) -> None:
+    from src.services.llm_service import LLMUnavailableError
+
+    class _BrokenComposer:
+        async def execute(self, question, parts):
+            raise LLMUnavailableError("503")
+
+    fake_schedule_service.schedules[(GROUP, "2026-09-30")] = DaySchedule(
+        group=GROUP, date="2026-09-30", day_label="Среда 30.09.2026", lessons=[]
+    )
+    use_case = make_question(
+        plan(
+            search={"question": "где деканат", "queries": ["где деканат"]},
+            schedule={"group": GROUP, "date": "2026-09-30", "question": "какие пары"},
+        ),
+        answer="Деканат в корпусе 2.",
+    )
+    use_case._compose_answer = _BrokenComposer()
+
+    result = await use_case.execute("какие пары и где деканат")
+
+    assert "пар нет" in result.text and "Деканат в корпусе 2." in result.text

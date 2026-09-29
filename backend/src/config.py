@@ -23,8 +23,8 @@ LLM_RATE_LIMIT_COOLDOWN_SECONDS: int = int(os.environ.get("LLM_RATE_LIMIT_COOLDO
 
 # Таймаут одной попытки запроса к LLM и общий бюджет на весь вызов (все повторы и все
 # запасные модели) - чтобы при перегрузке студент получил «попробуйте позже», а не ждал минутами.
-LLM_TIMEOUT_SECONDS: float = float(os.environ.get("LLM_TIMEOUT_SECONDS", "25"))
-LLM_TOTAL_BUDGET_SECONDS: float = float(os.environ.get("LLM_TOTAL_BUDGET_SECONDS", "60"))
+LLM_TIMEOUT_SECONDS: float = float(os.environ.get("LLM_TIMEOUT_SECONDS", "45"))
+LLM_TOTAL_BUDGET_SECONDS: float = float(os.environ.get("LLM_TOTAL_BUDGET_SECONDS", "90"))
 
 # Максимум одновременных запросов к локальной модели эмбеддингов (CPU-bound) -
 # защита от перегрузки CPU при большом числе параллельных запросов.

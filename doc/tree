@@ -65,6 +65,7 @@
 │   │   │   ├── analyze_data.py
 │   │   │   ├── analyze_schedule.py
 │   │   │   ├── build_route.py
+│   │   │   ├── compose_answer.py
 │   │   │   ├── get_schedule.py
 │   │   │   ├── import_news.py
 │   │   │   ├── new_data.py
@@ -109,6 +110,7 @@
 │   │   ├── use_cases
 │   │   │   ├── test_analyze_data.py
 │   │   │   ├── test_build_route.py
+│   │   │   ├── test_compose_answer.py
 │   │   │   ├── test_get_schedule.py
 │   │   │   ├── test_import_news.py
 │   │   │   ├── test_new_data.py
@@ -180,13 +182,13 @@
 
 Строки кода
 ============================================================
-Всего файлов: 142
-Всего строк: 31115
+Всего файлов: 144
+Всего строк: 31257
 
 По расширениям:
   .png                 12018
   .json                7576
-  .py                  6270
+  .py                  6412
   .tsx                 1919
   .css                 1420
   .jpg                 599

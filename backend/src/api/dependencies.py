@@ -21,6 +21,7 @@ from src.services.vector_search_service import VectorSearchService
 from src.use_cases.analyze_data import AnalyzeDataByLLMForNewData, AnalyzeDataByLLMForUser
 from src.use_cases.analyze_schedule import AnalyzeScheduleForUser
 from src.use_cases.build_route import BuildRoute
+from src.use_cases.compose_answer import ComposeAnswer
 from src.use_cases.get_schedule import GetSchedule
 from src.use_cases.import_news import ImportNews
 from src.use_cases.new_data import NewData
@@ -151,6 +152,7 @@ def get_question_use_case() -> Question:
         get_question_cache_service(),
         get_get_schedule_use_case(),
         build_route=get_build_route_use_case(),
+        compose_answer=ComposeAnswer(get_llm_service()),
     )
 
 
