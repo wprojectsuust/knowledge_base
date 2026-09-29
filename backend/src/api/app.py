@@ -12,6 +12,7 @@ from src import config
 from src.api.dependencies import (
     get_data_store_service,
     get_embedding_service,
+    get_import_documents_use_case,
     get_import_news_use_case,
     get_llm_service,
     get_question_cache_service,
@@ -35,6 +36,18 @@ async def _import_news_periodically() -> None:
         except Exception:
             logger.exception("Импорт новостей: прогон упал, попробую в следующий раз")
         await asyncio.sleep(config.NEWS_IMPORT_INTERVAL_MINUTES * 60)
+
+
+async def _import_documents_periodically() -> None:
+    """Фоновая синхронизация списка документов uust.ru/sveden/document/. Первый прогон - через
+    5 минут после старта (после первого импорта новостей), дальше раз в DOCUMENTS_IMPORT_INTERVAL_HOURS."""
+    await asyncio.sleep(5 * 60)
+    while True:
+        try:
+            await get_import_documents_use_case().execute()
+        except Exception:
+            logger.exception("Импорт документов: прогон упал, попробую в следующий раз")
+        await asyncio.sleep(config.DOCUMENTS_IMPORT_INTERVAL_HOURS * 3600)
 
 
 @asynccontextmanager
@@ -76,11 +89,17 @@ async def lifespan(app: FastAPI):
         news_task = asyncio.create_task(_import_news_periodically())
         logger.info("Импорт новостей uust.ru: раз в %d мин", config.NEWS_IMPORT_INTERVAL_MINUTES)
 
+    documents_task = None
+    if config.DOCUMENTS_IMPORT_INTERVAL_HOURS > 0:
+        documents_task = asyncio.create_task(_import_documents_periodically())
+        logger.info("Импорт документов uust.ru: раз в %d ч", config.DOCUMENTS_IMPORT_INTERVAL_HOURS)
+
     logger.info("Сервер готов принимать запросы")
     yield
     logger.info("Остановка сервера")
-    if news_task is not None:
-        news_task.cancel()
+    for task in (news_task, documents_task):
+        if task is not None:
+            task.cancel()
 
 
 def create_app() -> FastAPI:

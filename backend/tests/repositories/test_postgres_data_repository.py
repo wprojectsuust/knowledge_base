@@ -106,3 +106,14 @@ async def test_delete_removes_document(fake_asyncpg_pool) -> None:
     args, _ = fake_asyncpg_pool.execute.call_args
     assert "DELETE FROM documents" in args[0]
     assert args[1] == 1
+
+
+async def test_sources_with_prefix_maps_source_to_id(fake_asyncpg_pool) -> None:
+    fake_asyncpg_pool.fetch.return_value = [{"source": "https://uust.ru/sveden/document/#abc", "id": 7}]
+    repo = _make_repo()
+
+    found = await repo.sources_with_prefix("https://uust.ru/sveden/document/")
+
+    assert found == {"https://uust.ru/sveden/document/#abc": 7}
+    sql, prefix = fake_asyncpg_pool.fetch.call_args.args
+    assert "starts_with(source, $1)" in sql and prefix == "https://uust.ru/sveden/document/"

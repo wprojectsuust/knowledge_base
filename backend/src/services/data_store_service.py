@@ -27,3 +27,6 @@ class DataStoreService:
 
     async def existing_sources(self, sources: list[str]) -> set[str]:
         return await self._data_repository.existing_sources(sources)
+
+    async def sources_with_prefix(self, prefix: str) -> dict[str, int]:
+        return await self._data_repository.sources_with_prefix(prefix)

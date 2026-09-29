@@ -43,6 +43,12 @@ NEWS_IMPORT_LIMIT: int = int(os.environ.get("NEWS_IMPORT_LIMIT", "14"))
 # нужный живым вопросам студентов (на пустой базе при старте новых новостей сразу 14).
 NEWS_IMPORT_PAUSE_SECONDS: float = float(os.environ.get("NEWS_IMPORT_PAUSE_SECONDS", "20"))
 
+# Список официальных документов (uust.ru/sveden/document/, только названия и ссылки) в базе знаний:
+# как часто синхронизировать (часы, 0 - выключено) и по сколько документов в одной записи базы.
+# Первый прогон - ~100 вызовов LLM (с той же паузой, что у новостей), дальше - только изменения.
+DOCUMENTS_IMPORT_INTERVAL_HOURS: int = int(os.environ.get("DOCUMENTS_IMPORT_INTERVAL_HOURS", "24"))
+DOCUMENTS_IMPORT_BATCH_SIZE: int = int(os.environ.get("DOCUMENTS_IMPORT_BATCH_SIZE", "20"))
+
 # Порог косинусового сходства для обычного поиска по базе знаний: фрагменты ниже него не
 # попадают в контекст LLM - иначе на вопрос без ответа в базе модель пересказывает всё
 # подряд из топ-N. Реальные значения видны в DEBUG-логах SearchDataByListOfStr - по ним

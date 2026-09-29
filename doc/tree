@@ -35,6 +35,7 @@
 │   │   │   ├── division.py
 │   │   │   ├── location.py
 │   │   │   ├── news.py
+│   │   │   ├── official_document.py
 │   │   │   ├── plan.py
 │   │   │   ├── route.py
 │   │   │   └── schedule.py
@@ -48,12 +49,14 @@
 │   │   │   ├── isu_schedule_repository.py
 │   │   │   ├── json_campus_repository.py
 │   │   │   ├── news_repository.py
+│   │   │   ├── official_documents_repository.py
 │   │   │   ├── postgres_data_repository.py
 │   │   │   ├── postgres_question_cache_repository.py
 │   │   │   ├── postgres_schedule_cache_repository.py
 │   │   │   ├── question_cache_repository.py
 │   │   │   ├── schedule_cache_repository.py
 │   │   │   ├── schedule_repository.py
+│   │   │   ├── uust_documents_repository.py
 │   │   │   ├── uust_news_repository.py
 │   │   │   └── vector_repository.py
 │   │   ├── services
@@ -63,6 +66,7 @@
 │   │   │   ├── embedding_service.py
 │   │   │   ├── llm_service.py
 │   │   │   ├── news_service.py
+│   │   │   ├── official_documents_service.py
 │   │   │   ├── question_cache_service.py
 │   │   │   ├── schedule_cache_service.py
 │   │   │   ├── schedule_service.py
@@ -74,6 +78,7 @@
 │   │   │   ├── build_route.py
 │   │   │   ├── compose_answer.py
 │   │   │   ├── get_schedule.py
+│   │   │   ├── import_documents.py
 │   │   │   ├── import_news.py
 │   │   │   ├── new_data.py
 │   │   │   ├── plan_question.py
@@ -90,10 +95,12 @@
 │   │   ├── domain
 │   │   │   ├── test_campus.py
 │   │   │   ├── test_clarification.py
-│   │   │   └── test_division.py
+│   │   │   ├── test_division.py
+│   │   │   └── test_official_document.py
 │   │   ├── e2e
 │   │   │   └── test_knowledge_base_workflow_e2e.py
 │   │   ├── fixtures
+│   │   │   ├── uust_documents.html
 │   │   │   ├── uust_news_item.html
 │   │   │   └── uust_news_list.html
 │   │   ├── integration
@@ -107,6 +114,7 @@
 │   │   │   ├── test_postgres_data_repository.py
 │   │   │   ├── test_postgres_question_cache_repository.py
 │   │   │   ├── test_postgres_schedule_cache_repository.py
+│   │   │   ├── test_uust_documents_repository.py
 │   │   │   └── test_uust_news_repository.py
 │   │   ├── services
 │   │   │   ├── test_campus_service.py
@@ -119,6 +127,7 @@
 │   │   │   ├── test_build_route.py
 │   │   │   ├── test_compose_answer.py
 │   │   │   ├── test_get_schedule.py
+│   │   │   ├── test_import_documents.py
 │   │   │   ├── test_import_news.py
 │   │   │   ├── test_new_data.py
 │   │   │   ├── test_plan_question.py
@@ -237,7 +246,10 @@
 │   │   └── paid_education.jsonl
 │   ├── ingest_md.py
 │   ├── kb.jsonl
-│   └── kb.py
+│   ├── kb.py
+│   ├── upload_kb.done
+│   ├── upload_kb.log
+│   └── upload_kb.py
 ├── scripts
 │   └── tree.py
 ├── .env.example
@@ -249,14 +261,14 @@
 
 Строки кода
 ============================================================
-Всего файлов: 194
-Всего строк: 44653
+Всего файлов: 206
+Всего строк: 45258
 
 По расширениям:
   .png                 12018
   .json                8040
-  .html                7107
-  .py                  6532
+  .html                7136
+  .py                  7042
   .md                  5466
   .tsx                 1919
   .css                 1420
@@ -268,5 +280,7 @@
   .txt                 83
   .js                  61
   .toml                41
-  .example             36
+  .example             38
+  .done                32
+  .log                 32
   .mjs                 9

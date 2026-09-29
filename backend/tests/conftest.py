@@ -110,6 +110,9 @@ class FakeDataStoreService:
     async def existing_sources(self, sources: list[str]) -> set[str]:
         return {item.source for item in self.store.values() if item.source in sources}
 
+    async def sources_with_prefix(self, prefix: str) -> dict[str, int]:
+        return {item.source: id_ for id_, item in self.store.items() if item.source.startswith(prefix)}
+
 
 @pytest.fixture
 def fake_data_store_service() -> FakeDataStoreService:
