@@ -185,6 +185,13 @@
 │   │   │   ├── 01_administration
 │   │   │   │   ├── admissions.md
 │   │   │   │   ├── campus_and_buildings.md
+│   │   │   │   ├── p1.html
+│   │   │   │   ├── p2.html
+│   │   │   │   ├── p3.html
+│   │   │   │   ├── p4.html
+│   │   │   │   ├── p5.html
+│   │   │   │   ├── p6.html
+│   │   │   │   ├── p8.html
 │   │   │   │   └── rectorate.md
 │   │   │   ├── 02_institutes_and_faculties
 │   │   │   │   ├── humanities_and_social
@@ -224,7 +231,10 @@
 │   │   ├── 003_stipendii_pgas_filialy.txt
 │   │   ├── 004_data_rar_ingested.txt
 │   │   ├── 005_photos_school_of_mentors.txt
-│   │   └── 005_photos_school_of_mentors_notes.md
+│   │   ├── 005_photos_school_of_mentors_notes.md
+│   │   └── 006_research_paid_education.txt
+│   ├── research
+│   │   └── paid_education.jsonl
 │   ├── ingest_md.py
 │   ├── kb.jsonl
 │   └── kb.py
@@ -239,23 +249,23 @@
 
 Строки кода
 ============================================================
-Всего файлов: 185
-Всего строк: 37669
+Всего файлов: 194
+Всего строк: 44643
 
 По расширениям:
   .png                 12018
   .json                8040
+  .html                7107
   .py                  6532
   .md                  5466
   .tsx                 1919
   .css                 1420
   .jpg                 599
-  (без расширения)     357
+  (без расширения)     412
+  .jsonl               377
   .ts                  325
-  .jsonl               319
-  .html                247
   .yml                 198
-  .txt                 82
+  .txt                 83
   .js                  61
   .toml                41
   .example             36
