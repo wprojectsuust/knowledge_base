@@ -168,6 +168,7 @@
 │   │   ├── ClarificationPrompt.tsx
 │   │   ├── FactChips.tsx
 │   │   ├── Icons.tsx
+│   │   ├── Markdown.tsx
 │   │   ├── QuickAccessCard.tsx
 │   │   ├── Sidebar.tsx
 │   │   ├── SourcesList.tsx
@@ -261,26 +262,26 @@
 
 Строки кода
 ============================================================
-Всего файлов: 206
-Всего строк: 45258
+Всего файлов: 207
+Всего строк: 47256
 
 По расширениям:
   .png                 12018
-  .json                8040
+  .json                9563
   .html                7136
-  .py                  7042
+  .py                  7062
   .md                  5466
-  .tsx                 1919
-  .css                 1420
+  .tsx                 1964
+  .css                 1638
   .jpg                 599
-  (без расширения)     422
+  (без расширения)     436
   .jsonl               377
-  .ts                  325
+  .ts                  336
   .yml                 198
+  .log                 117
+  .done                114
   .txt                 83
   .js                  61
   .toml                41
   .example             38
-  .done                32
-  .log                 32
   .mjs                 9

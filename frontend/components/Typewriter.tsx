@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Markdown } from "@/components/Markdown";
 
 type TypewriterProps = {
   text: string;
@@ -10,7 +11,7 @@ type TypewriterProps = {
   onDone?: () => void;
 };
 
-/** Печатает текст «как ИИ»: длинный ответ не печатается дольше durationMs. */
+/** Печатает Markdown-текст «как ИИ»: длинный ответ не печатается дольше durationMs. */
 export function Typewriter({ text, className, durationMs = 1600, onDone }: TypewriterProps) {
   const [shown, setShown] = useState(0);
 
@@ -35,9 +36,9 @@ export function Typewriter({ text, className, durationMs = 1600, onDone }: Typew
   }, [shown, text.length]);
 
   return (
-    <p className={className}>
-      {text.slice(0, shown)}
+    <div className={className}>
+      <Markdown text={text.slice(0, shown)} />
       {shown < text.length && <span className="caret" />}
-    </p>
+    </div>
   );
 }

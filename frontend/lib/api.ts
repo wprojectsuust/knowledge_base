@@ -86,18 +86,29 @@ export async function askQuestion(
   };
 }
 
-const SOURCE_PATTERN = /\[Источник:\s*([^\]]+)]/gi;
+// [Источник: …] или (Источник: …) - LLM пишет и так, и так; внутри может быть несколько через «;»
+const SOURCE_PATTERN = /[[(]\s*Источник:\s*([^\])]+)[\])]/gi;
+// «ID 140», «id: 57» - внутренний номер фрагмента базы: факт без источника, показывать нечего
+const INTERNAL_ID = /^(id|№)?[\s:#]*\d+$/i;
 
 export function extractSources(answer: string): string[] {
   const found = new Set<string>();
   for (const match of answer.matchAll(SOURCE_PATTERN)) {
-    found.add(match[1].trim());
+    for (const part of match[1].split(";")) {
+      const source = part.trim();
+      if (source && !INTERNAL_ID.test(source)) found.add(source);
+    }
   }
   return Array.from(found);
 }
 
 export function stripSourceTags(answer: string): string {
-  return answer.replace(SOURCE_PATTERN, "").replace(/[ \t]+\n/g, "\n").trim();
+  return answer
+    .replace(SOURCE_PATTERN, "")
+    .replace(/(\S)[ \t]{2,}/g, "$1 ") // двойной пробел на месте вырезанной пометки; отступы списков не трогаем
+    .replace(/[ \t]+([.,;:])/g, "$1")
+    .replace(/[ \t]+\n/g, "\n")
+    .trim();
 }
 
 /** Маршрут по кампусу: откуда (по умолчанию КПП) и куда - "7-404", "7", "7@3", "kpp", "place:library". */

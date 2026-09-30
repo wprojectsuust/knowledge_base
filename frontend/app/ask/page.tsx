@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { BookmarkLockIcon, SearchIcon, SendIcon, SparkleIcon, TentIcon } from "@/components/Icons";
 import { ClarificationPrompt } from "@/components/ClarificationPrompt";
 import { FactChips } from "@/components/FactChips";
+import { Markdown } from "@/components/Markdown";
 import { SourcesList } from "@/components/SourcesList";
 import { Typewriter } from "@/components/Typewriter";
 import { VenueMap } from "@/components/VenueMap";
@@ -247,7 +248,9 @@ export default function AskPage() {
                 {item.answer !== null && (
                   <>
                     {item.restored ? (
-                      <p className="answer-text">{stripSourceTags(item.answer)}</p>
+                      <div className="answer-text">
+                        <Markdown text={stripSourceTags(item.answer)} />
+                      </div>
                     ) : (
                       <Typewriter
                         className="answer-text"

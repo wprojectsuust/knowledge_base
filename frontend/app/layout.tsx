@@ -1,11 +1,19 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
-import { Sidebar } from "@/components/Sidebar";
+import { MobileNav, Sidebar } from "@/components/Sidebar";
 
 export const metadata: Metadata = {
   title: "УУНиТ — База знаний студентов",
   description: "ИИ-консультант, который отвечает на вопросы студентов и указывает источник.",
+};
+
+// viewport-fit=cover - чтобы env(safe-area-inset-*) работали под «чёлкой» и полоской жестов
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#050b24",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -27,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </main>
         </div>
+        <MobileNav />
       </body>
     </html>
   );

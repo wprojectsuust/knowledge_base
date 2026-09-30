@@ -5,9 +5,9 @@ import { usePathname } from "next/navigation";
 import { ArrowRightIcon, HomeIcon, LogoMark, MapPinIcon, SearchIcon, SendIcon } from "@/components/Icons";
 
 const NAV_ITEMS = [
-  { label: "Главная", href: "/", Icon: HomeIcon },
-  { label: "Задать вопрос", href: "/ask", Icon: SearchIcon },
-  { label: "Карта кампуса", href: "/map", Icon: MapPinIcon },
+  { label: "Главная", short: "Главная", href: "/", Icon: HomeIcon },
+  { label: "Задать вопрос", short: "Спросить", href: "/ask", Icon: SearchIcon },
+  { label: "Карта кампуса", short: "Карта", href: "/map", Icon: MapPinIcon },
 ];
 
 export function Sidebar() {
@@ -44,5 +44,21 @@ export function Sidebar() {
         </span>
       </a>
     </aside>
+  );
+}
+
+/** На телефоне сайдбара нет - та же навигация нижней панелью вкладок. */
+export function MobileNav() {
+  const pathname = usePathname();
+
+  return (
+    <nav className="mobile-nav" aria-label="Разделы">
+      {NAV_ITEMS.map(({ short, href, Icon }) => (
+        <Link key={href} href={href} className={`mobile-nav-item${pathname === href ? " active" : ""}`}>
+          <Icon size={22} />
+          <span>{short}</span>
+        </Link>
+      ))}
+    </nav>
   );
 }

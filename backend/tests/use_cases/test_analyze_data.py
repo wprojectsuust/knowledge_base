@@ -29,3 +29,17 @@ async def test_analyze_data_for_user_prompt_forbids_off_topic_facts_and_suggests
     prompt = fake_llm_service.last_prompt.lower()
     assert "не относ" in prompt  # нерелевантные фрагменты - игнорировать
     assert "тьютор" in prompt  # куда обратиться, если ответа в базе нет
+
+
+async def test_facts_without_source_are_given_without_ids_so_llm_does_not_cite_them(fake_llm_service) -> None:
+    from src.domain.data import Data
+
+    fact = Data(id=140, source="", content="ИГСН - Институт гуманитарных и социальных наук.")
+    doc = Data(id=7, source="https://uust.ru/ospo/questions/", content="Вопросы о переводе.")
+
+    await AnalyzeDataByLLMForUser(fake_llm_service).execute("какие институты есть?", [fact, doc])
+
+    prompt = fake_llm_service.last_prompt
+    assert "140" not in prompt  # внутренний id базы - не источник, его не должно быть видно
+    assert "[Источник: https://uust.ru/ospo/questions/]" in prompt
+    assert "[Фрагмент]\nИГСН" in prompt  # без источника - общеизвестный факт, цитировать нечего
