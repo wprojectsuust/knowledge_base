@@ -159,3 +159,11 @@ async def test_prompt_has_current_time_for_how_long_questions(fake_llm_service, 
     await PlanQuestion(fake_llm_service).execute("через сколько это?")
 
     assert "13:10" in fake_llm_service.last_prompt
+
+
+async def test_prompt_asks_for_queries_in_students_own_words(fake_llm_service) -> None:
+    fake_llm_service.response = _plan()
+
+    await PlanQuestion(fake_llm_service).execute("телефон садится что делать")
+
+    assert "не придумывай новых тем" in fake_llm_service.last_prompt

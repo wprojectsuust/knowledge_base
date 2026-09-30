@@ -61,7 +61,9 @@ class ResearchAnswer:
         division_slug = division.slug if division else None
         found: dict[int | None, Data] = {}
         searched: set[str] = set()
-        queries = list(task.queries)
+        # сам вопрос - всегда первым: запросы планировщика дополняют его, но могут увести в сторону
+        # («телефон садится» -> «студенческий интернет VPN»), а факт находится по словам студента
+        queries = list(dict.fromkeys([task.question, *task.queries]))
 
         if self._latest_news is not None and is_news_question(task.question):
             # «какие есть мероприятия»: свежие новости - первыми в контексте, поиск дополняет

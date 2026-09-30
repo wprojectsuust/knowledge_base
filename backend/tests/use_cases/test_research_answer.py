@@ -136,3 +136,15 @@ async def test_other_questions_do_not_pull_news() -> None:
     await research.execute(TASK)
 
     assert latest.calls == 0
+
+
+async def test_question_itself_is_always_searched_not_only_planner_queries() -> None:
+    # планировщик может увести запросы в сторону («студенческий интернет VPN»), а факт находится
+    # по словам самого вопроса
+    search = FakeSearch({})
+    task = SearchTask(question="телефон садится, интернета нет - что делать", queries=("VPN вуз", "IT отдел"))
+
+    await _research(search, ScriptedLLM("Ответ.")).execute(task)
+
+    assert search.queries[0][0] == "телефон садится, интернета нет - что делать"
+    assert search.queries[0][1:] == ["VPN вуз", "IT отдел"]
