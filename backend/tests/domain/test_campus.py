@@ -126,3 +126,22 @@ def test_no_alternative_when_route_already_goes_outside(navigator) -> None:
 
     assert route is not None
     assert route.alternative is None
+
+
+def test_print_house_between_buildings_5_and_2_is_reachable(navigator) -> None:
+    route = navigator.route(parse_target("kpp"), parse_target("print"))
+
+    assert route is not None
+    assert "печатный дом" in route.to_label.lower()
+
+
+@pytest.mark.parametrize(
+    ("place", "building", "floor"),
+    [("place:student-office", "7", 1), ("place:situation-center", "6", 1), ("place:library", "7", 3)],
+)
+def test_student_services_are_where_students_find_them(navigator, place, building, floor) -> None:
+    route = navigator.route(parse_target("kpp"), parse_target(place))
+
+    assert route is not None
+    assert route.points[-1].building == building
+    assert route.points[-1].floor == floor

@@ -28,7 +28,14 @@ class CampusService:
         lines = []
         for campus in self.list():
             if not campus.entrances:
-                continue  # кампус-заглушка без входов - маршрут по нему не строится, не предлагаем
+                # кампус-заглушка без входов: маршрут не строится, но планировщик должен знать, что
+                # «главный корпус» - это здесь, а не корпус 1 на карте, и искать ответ в базе знаний
+                for building in campus.buildings:
+                    lines.append(
+                        f"- {building.name} ({campus.title}, {campus.address}) - не на карте, "
+                        "маршрут не строится: это search, не route"
+                    )
+                continue
             for building in campus.buildings:
                 name = f"Корпус {building.id}" if building.id.isdigit() else building.name
                 lines.append(f"- {name} ({campus.title}) -> {building.id}")
