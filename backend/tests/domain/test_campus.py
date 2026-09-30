@@ -137,7 +137,7 @@ def test_print_house_between_buildings_5_and_2_is_reachable(navigator) -> None:
 
 @pytest.mark.parametrize(
     ("place", "building", "floor"),
-    [("place:student-office", "7", 1), ("place:situation-center", "6", 1), ("place:library", "7", 3)],
+    [("place:student-office", "7", 1), ("place:situation-center", "6", 1), ("place:wardrobe-6", "6", 1), ("place:library", "7", 3)],
 )
 def test_student_services_are_where_students_find_them(navigator, place, building, floor) -> None:
     route = navigator.route(parse_target("kpp"), parse_target(place))

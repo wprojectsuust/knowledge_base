@@ -712,6 +712,17 @@
       688,
       236
      ]
+    },
+    {
+     "id": "wardrobe-6",
+     "kind": "place",
+     "building": "6",
+     "floor": 1,
+     "label": "Раздевалка",
+     "at": [
+      692,
+      222
+     ]
     }
    ],
    "entrances": [
