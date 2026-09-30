@@ -67,3 +67,24 @@ async def test_search_by_list_of_str_drops_documents_below_similarity_threshold(
     result = await use_case.execute(["что делать, если пропустил пару"])
 
     assert result == [relevant]
+
+
+async def test_document_lists_do_not_crowd_out_real_answers(
+    fake_embedding_service, fake_vector_search_service, fake_data_store_service
+) -> None:
+    # порции «Официальные документы УУНиТ…» - длинные списки названий, похожи почти на любой
+    # вопрос; без ограничения они занимали всю выдачу и вытесняли FAQ с настоящим ответом
+    for id_ in range(1, 7):
+        fake_data_store_service.store[id_] = Data(
+            id=id_, source=f"https://uust.ru/sveden/document/#batch{id_}", content=f"Официальные документы, порция {id_}"
+        )
+        await fake_vector_search_service.index(id_, [1.0])
+    fake_data_store_service.store[7] = Data(id=7, source="", content="Что делать, если не сдал экзамен: пересдача…")
+    await fake_vector_search_service.index(7, [1.0])
+
+    found = await SearchDataByListOfStr(
+        fake_embedding_service, fake_vector_search_service, fake_data_store_service, n_results=6
+    ).execute(["правила пересдачи"])
+
+    assert 7 in [item.id for item in found]
+    assert sum(item.source.startswith("https://uust.ru/sveden/document/") for item in found) == 2

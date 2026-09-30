@@ -104,6 +104,18 @@ class Question:
         )
         if isinstance(search_part, ClarificationRequest):
             return search_part
+        if plan.route is not None and route_part is None and search_part is None:
+            # места нет на карте («главный корпус» - другой кампус) - ищем ответ в базе знаний,
+            # там есть адреса корпусов, вместо «не нашёл на карте»
+            logger.info("Question: место %s не на карте, отвечаю по базе знаний", plan.route.target)
+            search_part = await self._search_part(
+                SearchTask(question=question, queries=(question,)), progress, can_clarify=False
+            )
+            if isinstance(search_part, ClarificationRequest):
+                search_part = None
+            place = plan.route.target.removeprefix("place:")
+            note = f"На карте кампуса УГАТУ «{place}» не отмечено, поэтому маршрут не показываю."
+            search_part = f"{search_part}\n\n_{note}_" if search_part else note
         route_text, route = route_part if route_part else (None, None)
         parts = [part for part in (schedule_part, search_part, route_text) if part]
         text = await self._compose(question, parts, route_text, progress)
@@ -142,15 +154,10 @@ class Question:
         return await self._research_answer.execute(task, progress=progress, can_clarify=can_clarify)
 
     async def _route_part(self, request: RouteRequest | None, progress: Progress):
-        if request is None:
+        if request is None or self._build_route is None:
             return None
         await progress("Прокладываю маршрут")
-        route = await self._build_route.execute(request.source, request.target) if self._build_route else None
+        route = await self._build_route.execute(request.source, request.target)
         if route is None:
-            place = request.target.removeprefix("place:")
-            return (
-                f"Не нашёл «{place}» на карте кампуса. Маршрут можно проложить до кабинета "
-                "(корпус-кабинет), корпуса, КПП, спортзала, буфета, библиотеки и других отмеченных мест.",
-                None,
-            )
+            return None
         return route.text(), route

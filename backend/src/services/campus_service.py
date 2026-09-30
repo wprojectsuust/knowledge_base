@@ -27,6 +27,8 @@ class CampusService:
         """Справка для LLM: какие места есть на картах и как их называть в запросе маршрута."""
         lines = []
         for campus in self.list():
+            if not campus.entrances:
+                continue  # кампус-заглушка без входов - маршрут по нему не строится, не предлагаем
             for building in campus.buildings:
                 name = f"Корпус {building.id}" if building.id.isdigit() else building.name
                 lines.append(f"- {name} ({campus.title}) -> {building.id}")

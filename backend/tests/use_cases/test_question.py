@@ -289,3 +289,16 @@ async def test_trivial_follow_up_skips_search_and_is_not_cached(
     assert result == Answer(text="Через 2 часа 15 минут.")
     assert fake_embedding_service.call_count == 0  # в векторную базу не ходили
     assert fake_question_cache_service.store == {}
+
+
+async def test_falls_back_to_knowledge_base_when_place_is_not_on_the_map(make_question, indexed_sample) -> None:
+    use_case = make_question(
+        planner_response=plan(route={"from": None, "to": "главный корпус БашГУ"}),
+        answer="Главный корпус - ул. Заки Валиди, 32.",
+    )
+
+    result = await use_case.execute("как добраться до главного корпуса?")
+
+    assert result.route is None
+    assert result.text.startswith("Главный корпус - ул. Заки Валиди, 32.")  # ответ из базы знаний
+    assert "не отмечено" in result.text  # и честно - почему без маршрута
