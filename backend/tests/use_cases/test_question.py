@@ -276,3 +276,16 @@ async def test_search_does_not_clarify_again_once_facts_are_given(make_question,
     result = await make_question(answer=clarify).execute(test_question, facts=[KnownFact(field="faculty", value="ФИРТ")])
 
     assert not isinstance(result, ClarificationRequest)
+
+
+async def test_trivial_follow_up_skips_search_and_is_not_cached(
+    make_question, indexed_sample, fake_embedding_service, fake_question_cache_service
+) -> None:
+    history = [DialogTurn(question="когда кончаются пары?", answer="Последняя пара заканчивается в 15:25.")]
+    use_case = make_question(planner_response=plan(reply="Через 2 часа 15 минут."), answer="НЕ ДОЛЖНО ВЫЗВАТЬСЯ")
+
+    result = await use_case.execute("через сколько это?", history=history)
+
+    assert result == Answer(text="Через 2 часа 15 минут.")
+    assert fake_embedding_service.call_count == 0  # в векторную базу не ходили
+    assert fake_question_cache_service.store == {}

@@ -4,6 +4,8 @@ from dataclasses import dataclass
 # для понимания «а туда как пройти?» этого хватает, а токены не раздуваются
 MAX_TURNS = 6
 MAX_ANSWER_CHARS = 600
+# последний ответ - почти целиком: на него чаще всего ссылаются («через сколько это?»)
+MAX_LAST_ANSWER_CHARS = 2000
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -17,7 +19,9 @@ class DialogTurn:
 
 def format_history(turns: list[DialogTurn]) -> str:
     lines = []
-    for turn in turns[-MAX_TURNS:]:
-        answer = turn.answer if len(turn.answer) <= MAX_ANSWER_CHARS else turn.answer[:MAX_ANSWER_CHARS] + "…"
+    recent = turns[-MAX_TURNS:]
+    for index, turn in enumerate(recent):
+        limit = MAX_LAST_ANSWER_CHARS if index == len(recent) - 1 else MAX_ANSWER_CHARS
+        answer = turn.answer if len(turn.answer) <= limit else turn.answer[:limit] + "…"
         lines.append(f"Студент: {turn.question}\nКонсультант: {answer}")
     return "\n\n".join(lines)

@@ -99,6 +99,7 @@
 │   │   ├── domain
 │   │   │   ├── test_campus.py
 │   │   │   ├── test_clarification.py
+│   │   │   ├── test_dialog.py
 │   │   │   ├── test_division.py
 │   │   │   └── test_official_document.py
 │   │   ├── e2e
@@ -160,6 +161,7 @@
 │   │   ├── 009-second-chance-and-live-progress.md
 │   │   ├── 010-deploy-images-built-in-ci.md
 │   │   ├── 011-sources-and-markdown.md
+│   │   ├── 012-trivial-questions-without-search.md
 │   │   ├── README.md
 │   │   └── template.md
 │   ├── images
@@ -301,19 +303,19 @@
 
 Строки кода
 ============================================================
-Всего файлов: 245
-Всего строк: 59289
+Всего файлов: 247
+Всего строк: 59476
 
 По расширениям:
   .png                 21672
   .json                9566
-  .py                  7534
-  .md                  7175
+  .py                  7642
+  .md                  7219
   .html                7136
   .tsx                 2029
   .css                 1727
   .jpg                 599
-  (без расширения)     438
+  (без расширения)     473
   .jsonl               377
   .ts                  370
   .yml                 203

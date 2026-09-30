@@ -109,3 +109,53 @@ async def test_today_is_taken_in_ufa_timezone(fake_llm_service, monkeypatch) -> 
     await PlanQuestion(fake_llm_service).execute("какие у меня завтра пары")
 
     assert "Сегодня 2026-09-30" in fake_llm_service.last_prompt
+
+
+async def test_trivial_follow_up_is_answered_by_planner_itself(fake_llm_service) -> None:
+    fake_llm_service.response = _plan(reply="Пары закончатся через 2 часа 15 минут, в 15:25.")
+    history = [DialogTurn(question="когда кончаются пары у ТОП-106Б?", answer="Последняя пара заканчивается в 15:25.")]
+
+    plan = await PlanQuestion(fake_llm_service).execute("через сколько это?", history=history)
+
+    assert plan == QuestionPlan(reply="Пары закончатся через 2 часа 15 минут, в 15:25.")
+
+
+async def test_reply_is_dropped_when_message_also_needs_the_knowledge_base(fake_llm_service) -> None:
+    # «спасибо, а где деканат?» - вежливость не должна съесть вопрос о вузе
+    fake_llm_service.response = _plan(
+        reply="Пожалуйста!", search={"question": "где деканат", "queries": ["где деканат"]}
+    )
+
+    plan = await PlanQuestion(fake_llm_service).execute("спасибо, а где деканат?")
+
+    assert plan.reply is None
+    assert plan.search is not None
+
+
+async def test_prompt_explains_when_not_to_go_to_the_knowledge_base(fake_llm_service) -> None:
+    fake_llm_service.response = _plan()
+
+    await PlanQuestion(fake_llm_service).execute("через сколько это?")
+
+    prompt = fake_llm_service.last_prompt
+    assert '"reply"' in prompt
+    assert "из диалога" in prompt  # тривиальный - только то, что выводится из прошлых реплик
+    assert "не отвечай сам" in prompt.lower()  # факты о вузе - только из базы, даже если модель «знает»
+
+
+async def test_prompt_has_current_time_for_how_long_questions(fake_llm_service, monkeypatch) -> None:
+    import datetime as dt
+
+    from src.use_cases import plan_question
+
+    class _FixedDatetime(dt.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return dt.datetime(2026, 9, 30, 8, 10, tzinfo=dt.timezone.utc).astimezone(tz)  # 13:10 в Уфе
+
+    monkeypatch.setattr(plan_question, "datetime", _FixedDatetime)
+    fake_llm_service.response = _plan()
+
+    await PlanQuestion(fake_llm_service).execute("через сколько это?")
+
+    assert "13:10" in fake_llm_service.last_prompt

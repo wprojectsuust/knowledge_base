@@ -45,7 +45,8 @@ main.py            точка входа uvicorn, логирование
 
 ```
 вопрос + history + facts
-  -> PlanQuestion               1 вызов LLM: план {search, schedule, route, clarify}
+  -> PlanQuestion               1 вызов LLM: план {reply, search, schedule, route, clarify}
+       reply:    тривиальный вопрос («через сколько это?») - ответ из диалога, сразу
   -> параллельно, только нужные части:
        search:   ResearchAnswer   поиск -> LLM: ответ | ещё поиск | уточнение (до 2 доп. шагов)
        schedule: GetSchedule      ИСУ + кэш -> ответ на конкретный вопрос

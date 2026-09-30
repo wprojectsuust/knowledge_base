@@ -23,3 +23,6 @@ class QuestionPlan:
     schedule: ScheduleRequest | None = None
     route: RouteRequest | None = None
     clarification: ClarificationRequest | None = None
+    # «тривиальный» вопрос: ответ целиком выводится из диалога и текущего времени («через сколько
+    # это?», «спасибо») - планировщик отвечает сам, в базу знаний не ходим. Только без других частей.
+    reply: str | None = None

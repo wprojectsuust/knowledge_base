@@ -15,6 +15,18 @@ from src.services.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
 
+_WEEKDAYS = ("понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье")
+
+_REPLY_RULES = (
+    '- "reply": "<готовый ответ>" - ТОЛЬКО если ответ целиком выводится из диалога выше и текущих даты и '
+    "времени, без новых сведений о вузе: уточнение или пересчёт прошлого ответа («через сколько это?», «а во "
+    "сколько начинается первая?», «сколько это в минутах?», «повтори номер кабинета»), благодарность, "
+    "приветствие, «что ты умеешь». Тогда все остальные ключи - null.\n"
+    "  Не отвечай сам на вопросы о вузе (правила, сроки, места, люди, документы, расписание на другой день), "
+    "даже если уверен в ответе, - это search/schedule/route: факты берутся только из базы знаний. Если в "
+    "сообщении есть хоть одна такая часть - reply null. Сомневаешься - reply null.\n"
+)
+
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _FIELD = re.compile(r"^[a-z_]+$")
 
@@ -59,7 +71,8 @@ class PlanQuestion:
             else ""
         )
         places = f"  Известные места:\n{self._places_hint}\n" if self._places_hint else ""
-        keys = '"search", "schedule", "route"' + (', "clarify"' if can_clarify else "")
+        keys = '"reply", "search", "schedule", "route"' + (', "clarify"' if can_clarify else "")
+        now = datetime.now(config.LOCAL_TZ)
         return (
             "Ты - планировщик консультанта УУНиТ. Разбери сообщение студента на части, которые нужно "
             "выполнить, чтобы на него ответить.\n\n"
@@ -72,7 +85,7 @@ class PlanQuestion:
             "об учёбе, документах, подразделениях, правилах.\n"
             '- "schedule": {"group": "<группа>", "date": "YYYY-MM-DD", "question": "<что именно спросили '
             'про расписание>"} - расписание КОНКРЕТНОЙ группы на КОНКРЕТНУЮ дату.\n'
-            f"  Сегодня {datetime.now(config.LOCAL_TZ).date().isoformat()}. Относительные даты ('завтра', день недели) переводи в "
+            f"  Сегодня {now.date().isoformat()} ({_WEEKDAYS[now.weekday()]}), сейчас {now:%H:%M}. Относительные даты ('завтра', день недели) переводи в "
             "абсолютные. Группу приводи к формату ИСУ: заглавные буквы, дефис между буквами и цифрами "
             "('топ106б' -> ТОП-106Б).\n"
             '- "route": {"from": "<откуда или null - тогда от КПП>", "to": "<куда>"} - ТОЛЬКО если прямо '
@@ -81,12 +94,13 @@ class PlanQuestion:
             "корпуса 7; place:<id> - ТОЛЬКО id из списка ниже, свои не придумывай.\n"
             f"{places}"
             + (_CLARIFY_RULES if can_clarify else "")
+            + _REPLY_RULES
             + "\nВсе формулировки - самостоятельные, понятные без диалога. В question части сохраняй "
             "смысл и условия студента целиком («смогу ли я поспать подольше, если…», а не просто "
             "«какие пары»).\n"
             'Пример: "какие завтра пары у ТОП-106Б и где деканат ФИРТ" -> {"search": {"question": '
             '"где находится деканат ФИРТ", "queries": ["деканат ФИРТ", "где деканат ФИРТ"]}, "schedule": '
-            '{"group": "ТОП-106Б", "date": "<завтра>", "question": "какие пары"}, "route": null'
+            '{"group": "ТОП-106Б", "date": "<завтра>", "question": "какие пары"}, "route": null, "reply": null'
             + (', "clarify": null' if can_clarify else "")
             + "}"
         )
@@ -132,4 +146,8 @@ class PlanQuestion:
                 clarification = ClarificationRequest(field=field, question=clarify_question)
 
         plan = QuestionPlan(search=search, schedule=schedule, route=route, clarification=clarification)
+        reply = str(data.get("reply") or "").strip()
+        if reply and plan == QuestionPlan():
+            # ответ из диалога - только когда больше ничего не нужно: «спасибо, а где деканат?» - это search
+            return QuestionPlan(reply=reply)
         return plan if plan != QuestionPlan() else fallback

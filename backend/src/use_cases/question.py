@@ -87,6 +87,11 @@ class Question:
             # LLM переспрашивает уже известное - не зацикливаемся
             logger.warning("Question: повторное уточнение поля %s, игнорирую", plan.clarification.field)
             plan = QuestionPlan(search=plan.search, schedule=plan.schedule, route=plan.route)
+        if plan.reply is not None:
+            # тривиальный вопрос («через сколько это?») - ответ уже есть, без поиска и без кэша:
+            # он зависит от диалога и текущего времени
+            logger.info("Question: тривиальный вопрос, ответ из диалога без поиска")
+            return Answer(text=plan.reply)
         if plan == QuestionPlan():
             plan = QuestionPlan(search=SearchTask(question=question, queries=(question,)))
 

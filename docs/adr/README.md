@@ -17,6 +17,7 @@ Architecture Decision Records - короткие записи о том, **по�
 | [009](009-second-chance-and-live-progress.md) | «Второй шанс» для поиска и живой прогресс через SSE | Принято |
 | [010](010-deploy-images-built-in-ci.md) | Деплой: образы собираются в CI, сервер только запускает | Принято |
 | [011](011-sources-and-markdown.md) | Источники в ответах и Markdown | Принято |
+| [012](012-trivial-questions-without-search.md) | Тривиальные вопросы - без похода в базу знаний | Принято |
 
 ## Когда писать ADR
 
