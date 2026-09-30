@@ -83,6 +83,7 @@
 │   │   │   ├── get_schedule.py
 │   │   │   ├── import_documents.py
 │   │   │   ├── import_news.py
+│   │   │   ├── latest_news.py
 │   │   │   ├── new_data.py
 │   │   │   ├── plan_question.py
 │   │   │   ├── question.py
@@ -101,6 +102,7 @@
 │   │   │   ├── test_clarification.py
 │   │   │   ├── test_dialog.py
 │   │   │   ├── test_division.py
+│   │   │   ├── test_news.py
 │   │   │   └── test_official_document.py
 │   │   ├── e2e
 │   │   │   └── test_knowledge_base_workflow_e2e.py
@@ -134,6 +136,7 @@
 │   │   │   ├── test_get_schedule.py
 │   │   │   ├── test_import_documents.py
 │   │   │   ├── test_import_news.py
+│   │   │   ├── test_latest_news.py
 │   │   │   ├── test_new_data.py
 │   │   │   ├── test_plan_question.py
 │   │   │   ├── test_question.py
@@ -303,20 +306,20 @@
 
 Строки кода
 ============================================================
-Всего файлов: 247
-Всего строк: 59561
+Всего файлов: 250
+Всего строк: 59752
 
 По расширениям:
   .png                 21672
   .json                9566
-  .py                  7724
-  .md                  7219
+  .py                  7905
+  .md                  7227
   .html                7136
-  .tsx                 2029
+  .tsx                 2028
   .css                 1727
   .jpg                 599
   (без расширения)     475
-  .jsonl               377
+  .jsonl               380
   .ts                  371
   .yml                 203
   .log                 117

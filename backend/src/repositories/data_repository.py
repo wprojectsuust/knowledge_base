@@ -31,3 +31,7 @@ class DataRepository(Protocol):
     async def sources_with_prefix(self, prefix: str) -> dict[str, int]:
         """source -> id записей, чей источник начинается с prefix (например, порции списка документов)."""
         ...
+
+    async def latest_with_prefix(self, prefix: str, limit: int) -> list[Data]:
+        """Последние добавленные записи с источником на prefix (например, импортированные новости)."""
+        ...

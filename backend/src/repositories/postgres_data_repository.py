@@ -23,6 +23,9 @@ _SELECT_ONE_SQL = "SELECT id, source, content, division FROM documents WHERE id 
 _SELECT_MANY_SQL = "SELECT id, source, content, division FROM documents WHERE id = ANY($1::int[])"
 _INSERT_SQL = "INSERT INTO documents (source, content, division) VALUES ($1, $2, $3) RETURNING id"
 _DELETE_SQL = "DELETE FROM documents WHERE id = $1"
+_LATEST_WITH_PREFIX_SQL = (
+    "SELECT id, source, content, division FROM documents WHERE starts_with(source, $1) ORDER BY id DESC LIMIT $2"
+)
 _SOURCES_WITH_PREFIX_SQL = "SELECT source, id FROM documents WHERE starts_with(source, $1)"
 _EXISTING_SOURCES_SQL = "SELECT DISTINCT source FROM documents WHERE source = ANY($1::text[])"
 
@@ -98,3 +101,9 @@ class PostgresDataRepository:
         rows = await pool.fetch(_SOURCES_WITH_PREFIX_SQL, prefix)
         logger.debug("SQL sources_with_prefix: %s -> %d", prefix, len(rows))
         return {row["source"]: row["id"] for row in rows}
+
+    async def latest_with_prefix(self, prefix: str, limit: int) -> list[Data]:
+        pool = await self._get_pool()
+        rows = await pool.fetch(_LATEST_WITH_PREFIX_SQL, prefix, limit)
+        logger.debug("SQL latest_with_prefix: %s -> %d", prefix, len(rows))
+        return [self._row_to_data(row) for row in rows]

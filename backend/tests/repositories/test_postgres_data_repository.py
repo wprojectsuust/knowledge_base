@@ -117,3 +117,16 @@ async def test_sources_with_prefix_maps_source_to_id(fake_asyncpg_pool) -> None:
     assert found == {"https://uust.ru/sveden/document/#abc": 7}
     sql, prefix = fake_asyncpg_pool.fetch.call_args.args
     assert "starts_with(source, $1)" in sql and prefix == "https://uust.ru/sveden/document/"
+
+
+async def test_latest_with_prefix_returns_newest_records_first(fake_asyncpg_pool) -> None:
+    fake_asyncpg_pool.fetch.return_value = [
+        {"id": 12, "source": "https://uust.ru/news/get/x", "content": "Новость", "division": None}
+    ]
+    repo = _make_repo()
+
+    found = await repo.latest_with_prefix("https://uust.ru/news/get/", 30)
+
+    assert [item.id for item in found] == [12]
+    sql, prefix, limit = fake_asyncpg_pool.fetch.call_args.args
+    assert "ORDER BY id DESC" in sql and prefix == "https://uust.ru/news/get/" and limit == 30

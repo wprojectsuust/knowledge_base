@@ -27,6 +27,7 @@ from src.use_cases.compose_answer import ComposeAnswer
 from src.use_cases.get_schedule import GetSchedule
 from src.use_cases.import_documents import ImportDocuments
 from src.use_cases.import_news import ImportNews
+from src.use_cases.latest_news import LatestNews
 from src.use_cases.new_data import NewData
 from src.use_cases.plan_question import PlanQuestion
 from src.use_cases.question import Question
@@ -156,6 +157,7 @@ def get_question_use_case() -> Question:
         get_get_schedule_use_case(),
         build_route=get_build_route_use_case(),
         compose_answer=ComposeAnswer(get_llm_service()),
+        latest_news=LatestNews(get_data_store_service()),
     )
 
 

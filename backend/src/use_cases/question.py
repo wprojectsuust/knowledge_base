@@ -14,6 +14,7 @@ from src.use_cases.analyze_data import AnalyzeDataByLLMForUser
 from src.use_cases.build_route import BuildRoute
 from src.use_cases.compose_answer import ComposeAnswer
 from src.use_cases.get_schedule import GetSchedule
+from src.use_cases.latest_news import LatestNews
 from src.use_cases.plan_question import PlanQuestion
 from src.use_cases.research_answer import ResearchAnswer
 from src.use_cases.search_data import SearchDataByListOfStr
@@ -47,9 +48,10 @@ class Question:
         get_schedule: GetSchedule,
         build_route: BuildRoute | None = None,
         compose_answer: ComposeAnswer | None = None,
+        latest_news: LatestNews | None = None,
     ) -> None:
         self._plan_question = plan_question
-        self._research_answer = ResearchAnswer(search_data, analyze_data)
+        self._research_answer = ResearchAnswer(search_data, analyze_data, latest_news=latest_news)
         self._question_cache_service = question_cache_service
         self._get_schedule = get_schedule
         self._build_route = build_route

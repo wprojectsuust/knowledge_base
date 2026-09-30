@@ -110,6 +110,10 @@ class FakeDataStoreService:
     async def existing_sources(self, sources: list[str]) -> set[str]:
         return {item.source for item in self.store.values() if item.source in sources}
 
+    async def latest_with_prefix(self, prefix: str, limit: int) -> list[Data]:
+        found = [item for _, item in sorted(self.store.items(), reverse=True) if item.source.startswith(prefix)]
+        return found[:limit]
+
     async def sources_with_prefix(self, prefix: str) -> dict[str, int]:
         return {item.source: id_ for id_, item in self.store.items() if item.source.startswith(prefix)}
 

@@ -30,3 +30,6 @@ class DataStoreService:
 
     async def sources_with_prefix(self, prefix: str) -> dict[str, int]:
         return await self._data_repository.sources_with_prefix(prefix)
+
+    async def latest_with_prefix(self, prefix: str, limit: int) -> list[Data]:
+        return await self._data_repository.latest_with_prefix(prefix, limit)

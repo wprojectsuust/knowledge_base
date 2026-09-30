@@ -103,3 +103,36 @@ async def test_repeated_queries_do_not_loop() -> None:
 
     assert answer == "Не нашёл."
     assert len(llm.prompts) == 2  # тот же запрос второй раз не ищем - сразу просим ответить
+
+
+NEWS = Data(id=40, source="https://uust.ru/news/get/it-fest", content="Новость УУНиТ от 28.09.2026: ИТ-фестиваль ТОП-ИТ 3 октября")
+
+
+class FakeLatestNews:
+    def __init__(self, news: list[Data]) -> None:
+        self.news = news
+        self.calls = 0
+
+    async def execute(self, limit: int = 5) -> list[Data]:
+        self.calls += 1
+        return self.news[:limit]
+
+
+async def test_questions_about_events_get_latest_news_in_context() -> None:
+    llm = ScriptedLLM("Скоро ИТ-фестиваль ТОП-ИТ.")
+    latest = FakeLatestNews([NEWS])
+    research = ResearchAnswer(FakeSearch({}), AnalyzeDataByLLMForUser(llm), latest_news=latest)
+
+    await research.execute(SearchTask(question="Какие есть мероприятия?", queries=("мероприятия УУНиТ",)))
+
+    assert NEWS.content in llm.prompts[0]
+
+
+async def test_other_questions_do_not_pull_news() -> None:
+    llm = ScriptedLLM("Декан ФИРТ - Иванов.")
+    latest = FakeLatestNews([NEWS])
+    research = ResearchAnswer(FakeSearch({}), AnalyzeDataByLLMForUser(llm), latest_news=latest)
+
+    await research.execute(TASK)
+
+    assert latest.calls == 0

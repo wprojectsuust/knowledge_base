@@ -5,10 +5,12 @@ import re
 from src.domain.clarification import ClarificationRequest
 from src.domain.data import Data
 from src.domain.division import detect_division
+from src.domain.news import is_news_question
 from src.domain.plan import SearchTask
 from src.domain.progress import Progress, no_progress
 from src.logging_utils import preview
 from src.use_cases.analyze_data import AnalyzeDataByLLMForUser
+from src.use_cases.latest_news import LatestNews
 from src.use_cases.search_data import SearchDataByListOfStr
 
 logger = logging.getLogger(__name__)
@@ -45,9 +47,11 @@ class ResearchAnswer:
         search_data: SearchDataByListOfStr,
         analyze_data: AnalyzeDataByLLMForUser,
         max_extra_searches: int = 2,
+        latest_news: LatestNews | None = None,
     ) -> None:
         self._search_data = search_data
         self._analyze_data = analyze_data
+        self._latest_news = latest_news
         self._max_extra_searches = max_extra_searches
 
     async def execute(
@@ -58,6 +62,12 @@ class ResearchAnswer:
         found: dict[int | None, Data] = {}
         searched: set[str] = set()
         queries = list(task.queries)
+
+        if self._latest_news is not None and is_news_question(task.question):
+            # «какие есть мероприятия»: свежие новости - первыми в контексте, поиск дополняет
+            await progress("Смотрю свежие новости")
+            for item in await self._latest_news.execute():
+                found.setdefault(item.id, item)
 
         await progress("Ищу в базе знаний")
         for step in range(self._max_extra_searches + 1):
