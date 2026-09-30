@@ -1,37 +1,130 @@
-# УУНиТ Knowledge Base
+# УУНиТ База знаний
 
-Монорепозиторий: FastAPI-бэкенд (`backend/`) + Next.js-фронтенд (`frontend/`).
+[![CI/CD](https://github.com/wprojectsuust/knowledge_base/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/wprojectsuust/knowledge_base/actions/workflows/ci-cd.yml)
 
-- **`backend/`** — RAG-сервис базы знаний (FastAPI, PostgreSQL, ChromaDB, любой OpenAI-совместимый
-  LLM). Подробности, API, переменные окружения, тесты — в `backend/README.md`.
-- **`frontend/`** — веб-интерфейс (Next.js/React): чат с ответами в Markdown и источниками,
-  3D-карта кампуса УГАТУ с маршрутами, адаптив под телефоны. Обращается к `backend/` по HTTP.
+ИИ-консультант для студентов Уфимского университета науки и технологий: отвечает на вопросы
+об учёбе, документах и жизни в вузе по проверенной базе знаний, показывает источник, знает
+расписание групп и прокладывает маршрут по кампусу на 3D-карте.
 
-Прод: https://karrad.tech/uunit/ (API — `/uunit/api/`, там же страница загрузки данных).
+**Попробовать:** https://karrad.tech/uunit/ · **Документация:** [docs/](docs/README.md)
+
+![Главная страница](docs/images/desktop-home.png)
+
+## Зачем
+
+Первокурсник тонет в информации: сайт вуза большой, ответы разбросаны по положениям, чатам
+групп и советам старшекурсников, а спросить не у кого или неловко. Поиск по сайту не понимает
+разговорных вопросов, общий чат-бот уверенно выдумывает правила конкретного вуза.
+
+Наш консультант отвечает **только** по базе знаний УУНиТ, честно говорит, когда ответа нет, и
+показывает, откуда взята информация.
+
+## Возможности
+
+- **Ответы по базе знаний со ссылкой на источник.** Поиск по смыслу, а не по словам: к каждому
+  фрагменту заранее сгенерированы вопросы студентов (RAG).
+- **«Второй шанс».** Нет прямого ответа - консультант сам ищет недостающее («сколько лет декану»
+  -> кто декан -> дата рождения -> посчитать) и показывает, что делает прямо сейчас.
+- **Несколько вопросов в одном сообщении** - «какие завтра пары у ТОП-106Б и где деканат ФИРТ».
+- **Расписание группы** из ИСУ на любую дату: «во сколько у меня завтра кончаются пары».
+- **Уточняющие вопросы** вместо угадывания: спросит группу один раз и запомнит.
+- **Навигатор по кампусу УГАТУ.** Маршрут «из 3-201 в 8-305» тёплыми переходами (включая
+  подземный под КПП) на 3D-карте, уличный вариант - пунктиром рядом.
+- **Контекст диалога** - «а туда как пройти?» - без аккаунтов: история живёт в браузере.
+- **Сама пополняется** новостями и списком официальных документов с uust.ru.
+- **Устойчивость:** запасные LLM-модели, кэш ответов, понятная ошибка вместо падения.
+- **Удобно с телефона:** нижние вкладки, адаптивная карта и чат.
+
+| Чат | Телефон |
+|---|---|
+| ![Чат](docs/images/desktop-ask.png) | ![Телефон](docs/images/mobile-home.png) |
+
+## Как это работает
+
+```mermaid
+flowchart LR
+    s([Студент]) --> f[Next.js]
+    f -- "HTTP / SSE" --> p[FastAPI:<br/>план вопроса - 1 вызов LLM]
+    p --> k[Поиск по базе знаний<br/>PostgreSQL + ChromaDB]
+    p --> r[Расписание<br/>ИСУ]
+    p --> n[Маршрут<br/>граф кампуса]
+    k & r & n --> a[Ответ с источниками]
+    a --> f
+```
+
+Вопрос разбирается одним вызовом LLM на части, части выполняются параллельно, ответы
+сводятся в один. Подробно - [docs/architecture.md](docs/architecture.md), причины решений -
+[docs/adr/](docs/adr/README.md).
+
+## Стек
+
+| Часть | Технологии |
+|---|---|
+| Бэкенд | Python 3.11, FastAPI (async), pydantic, asyncpg, httpx, BeautifulSoup |
+| Поиск | ChromaDB, sentence-transformers `cointegrated/rubert-tiny2` (CPU) |
+| LLM | любой OpenAI-совместимый API (сейчас Qwen через claudehub, запасной - Gemini) |
+| Данные | PostgreSQL 16 |
+| Фронтенд | Next.js 15, React 19, TypeScript, three.js (react-three-fiber), react-markdown |
+| Инфраструктура | Docker Compose, nginx, GitHub Actions |
+| Качество | pytest (194 юнит-теста, покрытие ~88%), TDD, чистая архитектура, ADR |
 
 ## Быстрый старт
 
 ```bash
-cp .env.example .env   # заполнить LLM_API_KEY (или GEMINI_API_KEY)
-make up                # поднимет backend + frontend + postgres
+git clone https://github.com/wprojectsuust/knowledge_base.git && cd knowledge_base
+make env        # создаст .env из .env.example - впишите LLM_API_KEY (или GEMINI_API_KEY)
+make up         # поднимет backend + frontend + postgres
 ```
 
-Фронтенд — `http://localhost:3000`, backend — `http://localhost:8000` (`/docs` для API).
+- фронтенд - http://localhost:3000;
+- бэкенд - http://localhost:8000, Swagger UI - `/docs`, загрузка данных в базу знаний - `/`.
 
-Остальные команды — в `Makefile` (`make help`-подобного списка нет, см. сам файл: `build`,
-`up`/`down`/`restart`, `logs`, `shell`/`shell-frontend`, `test`/`test-docker`,
-`test-integration`/`test-e2e`, `stress`, `hooks`).
+Запуск без Docker, прод и CI/CD - [docs/deployment.md](docs/deployment.md); все настройки -
+[docs/configuration.md](docs/configuration.md).
 
-## CI/CD и деплой
+## Структура репозитория
 
-`.github/workflows/ci-cd.yml`: на каждый push и PR — тесты бэкенда и сборка фронтенда; на push в
-`main` — сборка образов в GitHub Actions, доставка на сервер по SSH (`docker save | docker load`,
-на сервере ничего не собирается), `docker compose up` с `docker-compose.prod.yml` и проверка
-здоровья. Перед доставкой проверяется свободное место на сервере (нужно ≥1,5 ГБ).
+```
+.
+├── backend/                 FastAPI-сервис (чистая архитектура)
+│   ├── src/
+│   │   ├── domain/          сущности и чистая логика (план вопроса, граф кампуса…)
+│   │   ├── use_cases/       сценарии: Question, PlanQuestion, ResearchAnswer, NewData, импорты
+│   │   ├── services/        прокси к LLM, эмбеддингам, хранилищам
+│   │   ├── repositories/    Protocol-интерфейсы и реализации: Postgres, Chroma, ИСУ, uust.ru, campus.json
+│   │   └── api/             роуты, схемы, сборка зависимостей
+│   └── tests/               unit / integration / e2e / stress
+├── frontend/                Next.js: app/ (страницы), components/, lib/
+├── docs/                    документация, ADR, дерево файлов
+├── .github/                 CI/CD, шаблоны PR и issue
+├── docker-compose.yml       локальный стек
+└── docker-compose.prod.yml  прод-оверлей (за nginx)
+```
 
-Коммит без тестов и деплоя (например, только документация) — `[skip ci]` в сообщении коммита.
+## Документация
 
-## Структура проекта
+| | |
+|---|---|
+| [Архитектура](docs/architecture.md) | компоненты, слои, путь вопроса |
+| [API](docs/api.md) | эндпоинты, SSE, ошибки |
+| [База знаний](docs/knowledge-base.md) | как добавлять данные и писать фрагменты |
+| [Карта кампуса](docs/campus-map.md) | формат данных, навигатор |
+| [Конфигурация](docs/configuration.md) | переменные окружения |
+| [Деплой](docs/deployment.md) | запуск, прод, CI/CD |
+| [Фронтенд](docs/frontend.md) | страницы, компоненты, адаптив |
+| [Тестирование](docs/testing.md) | пирамида тестов |
+| [ADR](docs/adr/README.md) | архитектурные решения |
+| [CONTRIBUTING](CONTRIBUTING.md) · [CHANGELOG](CHANGELOG.md) · [SECURITY](SECURITY.md) | для участников |
 
-Актуальное дерево файлов и подсчёт строк — в `doc/tree` (перегенерируется
-автоматически перед каждым коммитом, см. `scripts/tree.py` и `.githooks/pre-commit`).
+## Команда
+
+| Участник | Роль |
+|---|---|
+| Кара Дмитрий Алексеевич | Ведущий разработчик: архитектура, бэкенд, фронтенд, развёртывание |
+| Карамов Максим Радикович | ML-инженер: модели, эмбеддинги, поиск и работа с LLM |
+| Баранов Алексей Антонович | Данные и база знаний: сбор и подготовка материалов |
+| Гумерова Камилла Хамитовна | Данные и база знаний: сбор и подготовка материалов |
+| Ткаченко Денис Юрьевич | Презентация и продвижение продукта |
+
+Нашли ошибку в ответе или не хватает информации - напишите в Telegram
+[@karrrad](https://t.me/karrrad) или [создайте issue](https://github.com/wprojectsuust/knowledge_base/issues/new/choose).

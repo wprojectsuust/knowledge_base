@@ -5,7 +5,7 @@ COMPOSE = docker compose
 env:
 	test -f .env || cp .env.example .env
 
-# Подключает .githooks (pre-commit пересобирает doc/tree перед каждым коммитом).
+# Подключает .githooks (pre-commit пересобирает docs/tree перед каждым коммитом).
 # Нужно выполнить один раз после клонирования репозитория.
 hooks:
 	git config core.hooksPath .githooks

@@ -1,145 +1,65 @@
-# УУНиТ Knowledge Base
+# Бэкенд - УУНиТ База знаний
 
-RAG-сервис базы знаний Уфимского университета науки и технологий: пользователь задаёт
-вопрос на естественном языке, сервис ищет релевантные фрагменты базы знаний и просит LLM
-сформулировать ответ (в Markdown) со ссылкой на источник. Умеет ещё расписание группы из ИСУ и
-маршруты по кампусу УГАТУ.
+FastAPI-сервис: RAG по базе знаний с источниками и «вторым шансом», расписание групп из ИСУ,
+навигатор по кампусу, автоимпорт новостей и документов uust.ru. Общий обзор проекта -
+[корневой README](../README.md).
 
-## Как это устроено
-
-Чистая архитектура (см. `doc/adrs/000-clean-architecture-tdd-two-databases.md`):
-домен и юз-кейсы ничего не знают о конкретных базах данных или LLM-провайдере, только
-про интерфейсы (`Protocol`).
-
-```
-Вопрос пользователя (+ последние реплики чата и известные сведения о студенте)
-  -> PlanQuestion              (один вызов LLM: план из частей search / schedule / route / clarify)
-  -> параллельно, только нужные части:
-       search:   ResearchAnswer                                    (база знаний, с источниками;
-                 поиск -> LLM: ответ | ещё поиск другими запросами | уточнение; до 2 доп. шагов)
-       schedule: GetSchedule -> AnalyzeScheduleForUser             (расписание ИСУ)
-       route:    BuildRoute                                        (маршрут по графу кампуса)
-  -> несколько частей сводятся в один ответ (ComposeAnswer), шаблонный текст маршрута - как есть
-```
-
-Источники: у фрагмента есть `source` (ссылка) - LLM ставит пометку `[Источник: …]`, фронт выносит
-её в блок «Источники». Фрагменты с пустым `source` - проверенные факты базы: в промпт они идут без
-источника и без внутреннего id, поэтому ответ их не цитирует.
-
-Если для ответа не хватает сведений о студенте (например, группы), вместо ответа возвращается
-уточнение - фронт спрашивает и присылает тот же вопрос с `facts`. История чата живёт только
-в браузере: фронт присылает последние реплики с каждым вопросом, сервер их не хранит.
-
-Две базы данных:
-- **PostgreSQL** - хранилище документов (`documents`) и кэша вопрос-ответ (`question_cache`),
-  доступ через `asyncpg` нативным SQL, без ORM (см. `doc/adrs/001-relational-db-for-documents.md`).
-- **ChromaDB** - векторный индекс поверх эмбеддингов (`cointegrated/rubert-tiny2`), локальный
-  персистентный клиент, без отдельного сервера.
-
-Дополнительно:
-- Ответы кэшируются по вопросу в Postgres - повторный вопрос не тратит токены LLM и CPU на эмбеддинг.
-- Документы можно опционально пометить тегом `division` (подразделение УУНиТ) - при поиске
-  используется мягкая приоритизация: сначала документы с тегом, совпавшим по ключевым словам
-  вопроса (`src/domain/division.py: detect_division`), затем обычный поиск как fallback.
-- Новости uust.ru подтягиваются в базу знаний сами (фоном, раз в `NEWS_IMPORT_INTERVAL_MINUTES`,
-  или вручную `POST /news/import`): уже загруженные пропускаются по ссылке, каждая новая проходит
-  обычную индексацию. Дата и заголовок новости хранятся в тексте, чтобы ответ учитывал актуальность.
-- Список официальных документов uust.ru/sveden/document/ (только названия и ссылки, сами файлы не
-  качаются) синхронизируется фоном раз в `DOCUMENTS_IMPORT_INTERVAL_HOURS`: документы режутся на
-  порции по разделам, `source` порции содержит хэш её текста. Не изменилось - ни одного вызова LLM;
-  изменилось - новая порция индексируется, устаревшая удаляется. Пустая страница базу не трогает.
-- Карта кампуса (`src/repositories/campus.json`): корпуса, переходы, лестницы, места; граф и
-  Dijkstra в `src/domain/campus.py`. Улица втрое «дороже» коридоров - маршрут ведёт тёплыми
-  переходами (в т.ч. подземным 6-7 под КПП), а уличный вариант отдаётся рядом (`alternative`,
-  на карте - пунктиром). Этажность - по паспортам доступности УГАТУ и OpenStreetMap,
-  лестницы расставлены примерно.
-- LLM: основная модель + запасные; повторы только на 5xx/таймаутах, на 429 модель «остывает»
-  `LLM_RATE_LIMIT_COOLDOWN_SECONDS`, общий бюджет времени на вопрос ограничен. Если LLM недоступна -
-  `503` с понятным текстом.
-- Число одновременных запросов к LLM и к модели эмбеддингов ограничено `asyncio.Semaphore`
-  (см. `src/config.py`) - защита от перегрузки внешнего API и CPU.
-
-## Стек
-
-FastAPI (async) - PostgreSQL/asyncpg - ChromaDB - любой OpenAI-совместимый LLM (сейчас
-Qwen через claudehub, запасной вариант - Gemini) - sentence-transformers (CPU) - pytest.
-
-## Быстрый старт
-
-Команды запускаются из корня репозитория (см. корневой `README.md` и `Makefile`):
+## Запуск
 
 ```bash
-cp .env.example .env   # заполнить LLM_API_KEY (или GEMINI_API_KEY)
-make up                # поднимет backend + frontend + postgres
+# из корня репозитория, весь стек в Docker
+make env && make up              # http://localhost:8000, Swagger UI - /docs
+
+# или только бэкенд, без Docker (нужен PostgreSQL)
+python -m venv .venv
+.venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
+.venv/bin/pip install -e ".[dev]"
+POSTGRES_HOST=localhost .venv/bin/python main.py
 ```
-
-Сервис будет на `http://localhost:8000`, интерактивная документация - на `/docs`.
-
-Другие команды (см. `Makefile`):
-
-| Команда | Что делает |
-|---|---|
-| `make build` | собрать образ |
-| `make up` / `make down` / `make restart` | поднять / остановить / перезапустить стек |
-| `make logs` | логи (по умолчанию DEBUG - видно запросы к API, БД, LLM, что нашлось) |
-| `make shell` / `make shell-frontend` | зайти в контейнер backend / frontend |
-| `make test` | юнит-тесты (локально, без докера) |
-| `make test-docker` | юнит-тесты внутри контейнера |
-| `make test-integration` | тесты на реальных Postgres/Chroma (нужен `make up`) |
-| `make test-e2e` | e2e-тесты на реально запущенный сервер (нужен `make up` + валидный ключ) |
-| `make stress` | нагрузочный тест k6 на `/question` |
-| `make hooks` | подключить `.githooks` (pre-commit пересобирает `doc/tree`) |
-
-## API
-
-| Метод | Путь | Описание |
-|---|---|---|
-| `POST` | `/question` | Задать вопрос, получить ответ с указанием источника |
-| `POST` | `/question/stream` | То же потоком (SSE): статусы «Ищу в базе знаний…», затем результат |
-| `POST` | `/search` | Сырой поиск по списку "реальных вопросов", без похода в LLM |
-| `POST` | `/data` | Добавить документ в базу знаний (`id` присваивает Postgres) |
-| `GET` | `/data/{id}` | Получить документ по id |
-| `DELETE` | `/data/{id}` | Удалить документ (из Postgres и из векторного индекса) |
-| `GET` | `/campus` | Данные 3D-карты: корпуса, переходы, лестницы, места, кабинеты |
-| `POST` | `/route` | Маршрут по кампусу (`"7-404"`, `"7"`, `"7@3"`, `"kpp"`, `"place:library"`) |
-| `POST` | `/news/import` | Подтянуть свежие новости uust.ru вручную |
-| `GET` | `/` | Страница загрузки данных в базу знаний |
-
-Пример:
-
-```bash
-curl -X POST http://localhost:8000/data \
-  -H 'Content-Type: application/json' \
-  -d '{"source": "uust.ru", "content": "Деканат находится в корпусе 2, каб. 204."}'
-
-curl -X POST http://localhost:8000/question \
-  -H 'Content-Type: application/json' \
-  -d '{"question": "Где находится деканат?"}'
-```
-
-## Переменные окружения
-
-См. `.env.example`:
-- LLM: `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` (одна модель или несколько через запятую - запасные);
-  если `LLM_API_KEY` пуст - `GEMINI_API_KEY`/`GEMINI_MODEL`; опционально `PROXY_URL`,
-  `LLM_RATE_LIMIT_COOLDOWN_SECONDS`;
-- PostgreSQL (`POSTGRES_*`), путь для Chroma (`CHROMA_PATH`), уровень логирования (`LOG_LEVEL`);
-- автоимпорт: `NEWS_IMPORT_INTERVAL_MINUTES`, `NEWS_IMPORT_LIMIT`, `NEWS_IMPORT_PAUSE_SECONDS`,
-  `DOCUMENTS_IMPORT_INTERVAL_HOURS` (0 - выключить);
-- `FRONTEND_ORIGIN` - разрешённые CORS-источники (`*` по умолчанию).
 
 ## Тесты
 
-Пирамида: `unit` (моки, по умолчанию) - `integration` (реальные Postgres/Chroma) -
-`e2e` (реальный HTTP-сервер целиком) - `stress` (k6). Подробности - в `make test*`/`make stress`
-выше и в комментариях самих тестовых файлов (`tests/integration/`, `tests/e2e/`, `tests/stress/`).
+```bash
+.venv/bin/python -m pytest              # unit + покрытие (по умолчанию)
+.venv/bin/python -m pytest -m integration   # реальные Postgres/Chroma, нужен make up
+.venv/bin/python -m pytest -m e2e           # весь стек + ключ LLM
+```
 
-## Структура проекта
+Подробно - [docs/testing.md](../docs/testing.md).
 
-Актуальное дерево файлов всего репозитория (backend + frontend) и подсчёт строк - в
-корневом `doc/tree` (перегенерируется автоматически перед каждым коммитом хуком в корне
-репозитория - `scripts/tree.py` и `.githooks/pre-commit`).
+## Устройство
 
-## Архитектурные решения
+```
+src/
+├── domain/        сущности и чистая логика: Data, QuestionPlan, CampusNavigator, порции документов
+├── use_cases/     Question (оркестратор), PlanQuestion, ResearchAnswer, GetSchedule, BuildRoute,
+│                  ComposeAnswer, NewData, RemoveDataById, ImportNews, ImportDocuments…
+├── services/      прокси: LLMService, EmbeddingService, VectorSearchService, DataStoreService…
+├── repositories/  Protocol + реализации: Postgres, Chroma, ИСУ, uust.ru, campus.json
+├── api/           app.py (фоновые задачи, CORS, 503), routes.py, schemas.py, dependencies.py
+└── config.py      настройки из окружения
+main.py            точка входа uvicorn, логирование
+```
 
-`doc/adrs/` - ADR (Architecture Decision Records), коротко и по-русски, без пафоса.
+Пайплайн вопроса:
+
+```
+вопрос + history + facts
+  -> PlanQuestion               1 вызов LLM: план {search, schedule, route, clarify}
+  -> параллельно, только нужные части:
+       search:   ResearchAnswer   поиск -> LLM: ответ | ещё поиск | уточнение (до 2 доп. шагов)
+       schedule: GetSchedule      ИСУ + кэш -> ответ на конкретный вопрос
+       route:    BuildRoute       Dijkstra по графу кампуса, шаблонный текст
+  -> ComposeAnswer              если частей несколько - один связный ответ
+```
+
+## Документация
+
+| | |
+|---|---|
+| [Архитектура](../docs/architecture.md) | слои, путь вопроса, диаграммы |
+| [API](../docs/api.md) | эндпоинты, SSE, ошибки |
+| [Конфигурация](../docs/configuration.md) | переменные окружения |
+| [База знаний](../docs/knowledge-base.md) | как добавлять данные |
+| [Карта кампуса](../docs/campus-map.md) | `campus.json` и навигатор |
+| [ADR](../docs/adr/README.md) | почему сделано так |

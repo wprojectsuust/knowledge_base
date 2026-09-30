@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Генерирует doc/tree: дерево файлов проекта и подсчёт строк кода.
+"""Генерирует docs/tree: дерево файлов проекта и подсчёт строк кода.
 
 Список файлов берётся через `git ls-files --cached --others --exclude-standard` -
 это ровно те файлы, которые git реально закоммитил бы, т.е. правила .gitignore
 учитываются автоматически, без ручного парсинга.
 
-Полностью перезаписывает doc/tree при каждом запуске. Вызывается pre-commit
+Полностью перезаписывает docs/tree при каждом запуске. Вызывается pre-commit
 хуком (.githooks/pre-commit), можно запустить и вручную: `python3 scripts/tree.py`.
 """
 
@@ -16,7 +16,7 @@ from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUTPUT_PATH = ROOT / "doc" / "tree"
+OUTPUT_PATH = ROOT / "docs" / "tree"
 
 
 def list_project_files() -> list[str]:

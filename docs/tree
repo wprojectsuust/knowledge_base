@@ -9,13 +9,15 @@
 ├── .githooks
 │   └── pre-commit
 ├── .github
-│   └── workflows
-│       └── ci-cd.yml
+│   ├── ISSUE_TEMPLATE
+│   │   ├── bug_report.md
+│   │   ├── config.yml
+│   │   ├── feature_request.md
+│   │   └── wrong_answer.md
+│   ├── workflows
+│   │   └── ci-cd.yml
+│   └── PULL_REQUEST_TEMPLATE.md
 ├── backend
-│   ├── doc
-│   │   └── adrs
-│   │       ├── 000-clean-architecture-tdd-two-databases.md
-│   │       └── 001-relational-db-for-documents.md
 │   ├── src
 │   │   ├── api
 │   │   │   ├── static
@@ -142,10 +144,38 @@
 │   ├── .dockerignore
 │   ├── Dockerfile
 │   ├── README.md
-│   ├── TODO
 │   ├── main.py
 │   └── pyproject.toml
-├── doc
+├── docs
+│   ├── adr
+│   │   ├── 000-clean-architecture-tdd-two-databases.md
+│   │   ├── 001-relational-db-for-documents.md
+│   │   ├── 002-single-planner-call-and-parallel-parts.md
+│   │   ├── 003-openai-compatible-llm-with-fallbacks.md
+│   │   ├── 004-question-based-indexing-rubert.md
+│   │   ├── 005-no-accounts-state-in-browser.md
+│   │   ├── 006-clarifying-questions.md
+│   │   ├── 007-campus-navigator-graph.md
+│   │   ├── 008-auto-import-from-uust.md
+│   │   ├── 009-second-chance-and-live-progress.md
+│   │   ├── 010-deploy-images-built-in-ci.md
+│   │   ├── 011-sources-and-markdown.md
+│   │   ├── README.md
+│   │   └── template.md
+│   ├── images
+│   │   ├── desktop-ask.png
+│   │   ├── desktop-home.png
+│   │   └── mobile-home.png
+│   ├── README.md
+│   ├── api.md
+│   ├── architecture.md
+│   ├── campus-map.md
+│   ├── configuration.md
+│   ├── deployment.md
+│   ├── frontend.md
+│   ├── knowledge-base.md
+│   ├── roadmap.md
+│   ├── testing.md
 │   └── tree
 ├── example
 │   ├── raspisanie
@@ -188,6 +218,7 @@
 │   ├── .dockerignore
 │   ├── .env.local.example
 │   ├── Dockerfile
+│   ├── README.md
 │   ├── next-env.d.ts
 │   ├── next.config.mjs
 │   ├── package-lock.json
@@ -259,29 +290,33 @@
 │   └── tree.py
 ├── .env.example
 ├── .gitignore
+├── CHANGELOG.md
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
 ├── Makefile
 ├── README.md
+├── SECURITY.md
 ├── docker-compose.prod.yml
 └── docker-compose.yml
 
 Строки кода
 ============================================================
-Всего файлов: 211
-Всего строк: 47965
+Всего файлов: 245
+Всего строк: 59289
 
 По расширениям:
-  .png                 12018
+  .png                 21672
   .json                9566
   .py                  7534
+  .md                  7175
   .html                7136
-  .md                  5507
   .tsx                 2029
   .css                 1727
   .jpg                 599
-  (без расширения)     441
+  (без расширения)     438
   .jsonl               377
   .ts                  370
-  .yml                 198
+  .yml                 203
   .log                 117
   .done                114
   .txt                 83

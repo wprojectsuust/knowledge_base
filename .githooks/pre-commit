@@ -1,7 +1,7 @@
 #!/bin/sh
-# Перегенерирует doc/tree (структура проекта + подсчёт строк кода) и добавляет
+# Перегенерирует docs/tree (структура проекта + подсчёт строк кода) и добавляет
 # его в текущий коммит. Подключается через `make hooks` (git config core.hooksPath).
 set -e
 
 python3 scripts/tree.py
-git add doc/tree
+git add docs/tree
