@@ -14,7 +14,9 @@ class AnalyzeDataByLLMForUser:
     def __init__(self, llm_service: LLMService) -> None:
         self._llm_service = llm_service
 
-    async def execute(self, prompt: str, data: list[Data]) -> str:
+    async def execute(self, prompt: str, data: list[Data], instructions: str = "") -> str:
+        """instructions - дополнительные правила в конце системной части (ResearchAnswer: можно
+        попросить ещё поиск или уточнение вместо ответа)."""
         logger.debug(
             "AnalyzeDataByLLMForUser: вопрос=%s, найдено документов=%d, id=%s",
             preview(prompt),
@@ -44,7 +46,8 @@ class AnalyzeDataByLLMForUser:
             "прошедшие события называй прошедшими, не выдавай их за предстоящие.\n"
             "Ответы кэшируются и могут быть показаны другому пользователю - поэтому НЕ обращайся "
             "к пользователю по имени и не упоминай никакую личную информацию о нём, даже если "
-            "она есть в вопросе.\n\n"
+            "она есть в вопросе.\n"
+            f"{instructions}\n"
             f"Контекст:\n{context}\n\n"
             f"Вопрос: {prompt}"
         )

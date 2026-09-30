@@ -21,6 +21,7 @@ import {
 } from "@/components/Icons";
 import { ClarificationPrompt } from "@/components/ClarificationPrompt";
 import { FactChips } from "@/components/FactChips";
+import { ThinkingIndicator } from "@/components/ThinkingIndicator";
 import { Typewriter } from "@/components/Typewriter";
 import { VenueMap } from "@/components/VenueMap";
 import { askQuestion, extractSources, stripSourceTags, type Clarification, type Fact, type Location, type Route } from "@/lib/api";
@@ -79,6 +80,7 @@ export default function HomePage() {
   const [route, setRoute] = useState<Route | null>(null);
   const [typed, setTyped] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
+  const [thinking, setThinking] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [clarification, setClarification] = useState<Clarification | null>(null);
   const [clarifiedWith, setClarifiedWith] = useState<string | null>(null);
@@ -92,6 +94,7 @@ export default function HomePage() {
     if (!keepClarified) setClarifiedWith(null);
 
     setStatus("loading");
+    setThinking(null);
     setErrorMessage(null);
     setAnswer(null);
     setLocation(null);
@@ -100,7 +103,7 @@ export default function HomePage() {
     setAskedQuestion(trimmed);
 
     try {
-      const result = await askQuestion(trimmed, knownFacts);
+      const result = await askQuestion(trimmed, knownFacts, [], setThinking);
       setClarification(result.clarification);
       setAnswer(result.answer);
       setLocation(result.location);
@@ -215,14 +218,7 @@ export default function HomePage() {
               <ClarificationPrompt clarification={clarification} onSubmit={answerClarification} />
             )}
 
-            {status === "loading" && (
-              <div className="skeleton">
-                <span style={{ width: "92%" }} />
-                <span style={{ width: "80%" }} />
-                <span style={{ width: "86%" }} />
-                <span style={{ width: "60%" }} />
-              </div>
-            )}
+            {status === "loading" && <ThinkingIndicator text={thinking} />}
 
             {status === "error" && <p className="answer-text error-text">{errorMessage}</p>}
 

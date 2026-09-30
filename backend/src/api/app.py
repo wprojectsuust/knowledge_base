@@ -19,7 +19,7 @@ from src.api.dependencies import (
     get_schedule_cache_service,
     get_vector_search_service,
 )
-from src.api.routes import router
+from src.api.routes import LLM_UNAVAILABLE_DETAIL, router
 from src.services.llm_service import LLMUnavailableError
 
 logger = logging.getLogger(__name__)
@@ -124,7 +124,7 @@ def create_app() -> FastAPI:
         logger.warning("LLM недоступна, отвечаю 503: %s", error)
         return JSONResponse(
             status_code=503,
-            content={"detail": "ИИ-модель сейчас перегружена, попробуйте ещё раз через минуту."},
+            content={"detail": LLM_UNAVAILABLE_DETAIL},
         )
 
     app.include_router(router)

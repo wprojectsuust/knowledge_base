@@ -37,6 +37,7 @@
 │   │   │   ├── news.py
 │   │   │   ├── official_document.py
 │   │   │   ├── plan.py
+│   │   │   ├── progress.py
 │   │   │   ├── route.py
 │   │   │   └── schedule.py
 │   │   ├── repositories
@@ -84,6 +85,7 @@
 │   │   │   ├── plan_question.py
 │   │   │   ├── question.py
 │   │   │   ├── remove_data.py
+│   │   │   ├── research_answer.py
 │   │   │   ├── resolve_location.py
 │   │   │   └── search_data.py
 │   │   ├── __init__.py
@@ -133,6 +135,7 @@
 │   │   │   ├── test_plan_question.py
 │   │   │   ├── test_question.py
 │   │   │   ├── test_remove_data.py
+│   │   │   ├── test_research_answer.py
 │   │   │   ├── test_resolve_location.py
 │   │   │   └── test_search_data.py
 │   │   └── conftest.py
@@ -172,6 +175,7 @@
 │   │   ├── QuickAccessCard.tsx
 │   │   ├── Sidebar.tsx
 │   │   ├── SourcesList.tsx
+│   │   ├── ThinkingIndicator.tsx
 │   │   ├── Typewriter.tsx
 │   │   └── VenueMap.tsx
 │   ├── lib
@@ -262,21 +266,21 @@
 
 Строки кода
 ============================================================
-Всего файлов: 207
-Всего строк: 47283
+Всего файлов: 211
+Всего строк: 47786
 
 По расширениям:
   .png                 12018
   .json                9552
+  .py                  7430
   .html                7136
-  .py                  7062
-  .md                  5503
-  .tsx                 1964
-  .css                 1638
+  .md                  5505
+  .tsx                 1980
+  .css                 1723
   .jpg                 599
   (без расширения)     437
   .jsonl               377
-  .ts                  336
+  .ts                  368
   .yml                 198
   .log                 117
   .done                114

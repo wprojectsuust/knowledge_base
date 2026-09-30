@@ -1,8 +1,10 @@
+import asyncio
+import json
 import logging
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 
 from src.api.dependencies import (
     get_build_route_use_case,
@@ -36,7 +38,9 @@ from src.domain.clarification import ClarificationRequest, KnownFact
 from src.domain.data import Data
 from src.domain.dialog import DialogTurn
 from src.domain.division import divisions_by_slug
+from src.domain.progress import Progress, no_progress
 from src.services.campus_service import CampusService
+from src.services.llm_service import LLMUnavailableError
 from src.use_cases.build_route import BuildRoute
 from src.use_cases.import_news import ImportNews
 from src.use_cases.new_data import NewData
@@ -57,16 +61,19 @@ async def upload_page() -> HTMLResponse:
     return HTMLResponse(content=_UPLOAD_PAGE_HTML)
 
 
-@router.post("/question", response_model=QuestionResponse)
-async def ask_question(
+LLM_UNAVAILABLE_DETAIL = "ИИ-модель сейчас перегружена, попробуйте ещё раз через минуту."
+
+
+async def _answer_question(
     payload: QuestionRequest,
-    use_case: Question = Depends(get_question_use_case),
-    resolve_location: ResolveLocation = Depends(get_resolve_location_use_case),
+    use_case: Question,
+    resolve_location: ResolveLocation,
+    progress: Progress = no_progress,
 ) -> QuestionResponse:
     logger.info("POST /question: %s (известно полей: %d)", payload.question, len(payload.facts))
     facts = [KnownFact(field=fact.field, value=fact.value) for fact in payload.facts]
     history = [DialogTurn(question=turn.question, answer=turn.answer) for turn in payload.history]
-    result = await use_case.execute(payload.question, facts, history)
+    result = await use_case.execute(payload.question, facts, history, progress=progress)
     if isinstance(result, ClarificationRequest):
         logger.info("POST /question: нужно уточнение поля %s", result.field)
         return QuestionResponse(clarification=ClarificationOut(field=result.field, question=result.question))
@@ -84,6 +91,56 @@ async def ask_question(
         location=LocationOut(building=location.building, room=location.room, floor=location.floor)
         if location
         else None,
+    )
+
+
+@router.post("/question", response_model=QuestionResponse)
+async def ask_question(
+    payload: QuestionRequest,
+    use_case: Question = Depends(get_question_use_case),
+    resolve_location: ResolveLocation = Depends(get_resolve_location_use_case),
+) -> QuestionResponse:
+    return await _answer_question(payload, use_case, resolve_location)
+
+
+@router.post("/question/stream")
+async def ask_question_stream(
+    payload: QuestionRequest,
+    use_case: Question = Depends(get_question_use_case),
+    resolve_location: ResolveLocation = Depends(get_resolve_location_use_case),
+) -> StreamingResponse:
+    """То же, что /question, но Server-Sent Events: пока ответ готовится - события
+    {"type": "status", "text": "Ищу в базе знаний"}, в конце {"type": "result", "data": <как /question>}
+    или {"type": "error", "detail": …}."""
+    queue: asyncio.Queue[dict | None] = asyncio.Queue()
+
+    async def progress(text: str) -> None:
+        await queue.put({"type": "status", "text": text})
+
+    async def run() -> None:
+        try:
+            response = await _answer_question(payload, use_case, resolve_location, progress)
+            await queue.put({"type": "result", "data": response.model_dump()})
+        except LLMUnavailableError as error:
+            logger.warning("POST /question/stream: LLM недоступна: %s", error)
+            await queue.put({"type": "error", "detail": LLM_UNAVAILABLE_DETAIL})
+        except Exception:
+            logger.exception("POST /question/stream: ошибка")
+            await queue.put({"type": "error", "detail": "Не удалось получить ответ, попробуйте ещё раз."})
+        finally:
+            await queue.put(None)
+
+    async def events():
+        task = asyncio.create_task(run())
+        try:
+            while (event := await queue.get()) is not None:
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+        finally:
+            task.cancel()  # клиент ушёл - не тратим LLM впустую
+
+    # X-Accel-Buffering: no - nginx иначе копит поток и отдаёт статусы разом в конце
+    return StreamingResponse(
+        events(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
     )
 
 

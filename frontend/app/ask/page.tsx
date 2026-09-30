@@ -6,6 +6,7 @@ import { ClarificationPrompt } from "@/components/ClarificationPrompt";
 import { FactChips } from "@/components/FactChips";
 import { Markdown } from "@/components/Markdown";
 import { SourcesList } from "@/components/SourcesList";
+import { ThinkingIndicator } from "@/components/ThinkingIndicator";
 import { Typewriter } from "@/components/Typewriter";
 import { VenueMap } from "@/components/VenueMap";
 import {
@@ -41,6 +42,8 @@ type Exchange = {
   typed: boolean;
   /** восстановлена из прошлого визита - показываем сразу, без печати и без карты */
   restored: boolean;
+  /** что консультант делает прямо сейчас («Ищу в базе знаний») - пока ответа нет */
+  thinking?: string | null;
 };
 
 const HISTORY_TURNS = 6;
@@ -106,8 +109,14 @@ export default function AskPage() {
   async function run(id: number, text: string, knownFacts: Fact[], history: HistoryTurn[]) {
     setLoading(true);
     try {
-      const result = await askQuestion(text, knownFacts, history);
-      update(id, { answer: result.answer, clarification: result.clarification, location: result.location, route: result.route });
+      const result = await askQuestion(text, knownFacts, history, (thinking) => update(id, { thinking }));
+      update(id, {
+        answer: result.answer,
+        clarification: result.clarification,
+        location: result.location,
+        route: result.route,
+        thinking: null,
+      });
     } catch (error) {
       update(id, { error: error instanceof Error ? error.message : "Не удалось получить ответ." });
     } finally {
@@ -237,13 +246,7 @@ export default function AskPage() {
                     onSubmit={(value) => answerClarification(item, value)}
                   />
                 )}
-                {!done && (
-                  <div className="skeleton">
-                    <span style={{ width: "92%" }} />
-                    <span style={{ width: "80%" }} />
-                    <span style={{ width: "64%" }} />
-                  </div>
-                )}
+                {!done && <ThinkingIndicator text={item.thinking ?? null} />}
                 {item.error && <p className="answer-text error-text">{item.error}</p>}
                 {item.answer !== null && (
                   <>

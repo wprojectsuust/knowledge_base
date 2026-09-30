@@ -46,8 +46,12 @@ class _StubQuestion:
         self.result = result
         self.calls: list[tuple] = []
 
-    async def execute(self, question, facts=None, history=None):
+    async def execute(self, question, facts=None, history=None, progress=None):
         self.calls.append((question, facts, history))
+        if progress is not None:
+            await progress("Ищу в базе знаний")
+        if isinstance(self.result, Exception):
+            raise self.result
         return self.result
 
 
@@ -273,7 +277,7 @@ def test_ask_question_returns_503_with_readable_message_when_llm_is_overloaded()
     from src.services.llm_service import LLMUnavailableError
 
     class _OverloadedQuestion:
-        async def execute(self, question, facts=None, history=None):
+        async def execute(self, question, facts=None, history=None, progress=None):
             raise LLMUnavailableError("503 high demand")
 
     client = _client_with_overrides({get_question_use_case: lambda: _OverloadedQuestion()})
@@ -315,3 +319,34 @@ def test_cors_allows_any_origin_by_default() -> None:
 
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] in ("*", "http://192.168.1.50:3000")
+
+
+def _events(response) -> list[dict]:
+    import json
+
+    return [json.loads(line.removeprefix("data: ")) for line in response.text.splitlines() if line.startswith("data: ")]
+
+
+def test_question_stream_sends_statuses_then_result() -> None:
+    client = _client_with_overrides({get_question_use_case: lambda: _StubQuestion(Answer(text="Деканат в корпусе 2."))})
+
+    response = client.post("/question/stream", json={"question": "Где деканат?"})
+
+    assert response.headers["content-type"].startswith("text/event-stream")
+    assert response.headers["x-accel-buffering"] == "no"  # иначе nginx отдаст статусы пачкой в конце
+    events = _events(response)
+    assert events[0] == {"type": "status", "text": "Ищу в базе знаний"}
+    assert events[-1]["type"] == "result"
+    assert events[-1]["data"]["answer"] == "Деканат в корпусе 2."
+    assert events[-1]["data"]["location"]["building"] == "2"
+
+
+def test_question_stream_reports_llm_outage_as_error_event() -> None:
+    from src.services.llm_service import LLMUnavailableError
+
+    client = _client_with_overrides({get_question_use_case: lambda: _StubQuestion(LLMUnavailableError("503"))})
+
+    events = _events(client.post("/question/stream", json={"question": "Где деканат?"}))
+
+    assert events[-1]["type"] == "error"
+    assert "перегружена" in events[-1]["detail"]

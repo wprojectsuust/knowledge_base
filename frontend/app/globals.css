@@ -599,27 +599,112 @@ input {
   color: #ff9a94;
 }
 
-.skeleton {
+/* «думаю»: крутящееся кольцо + текущий шаг, текст плавно сменяется */
+.thinking {
   margin-top: 14px;
   display: flex;
-  flex-direction: column;
-  gap: 9px;
+  align-items: center;
+  gap: 14px;
+  min-height: 40px;
 }
 
-.skeleton span {
-  height: 9px;
-  border-radius: 5px;
-  background: linear-gradient(90deg, rgba(120, 150, 255, 0.12), rgba(120, 150, 255, 0.26), rgba(120, 150, 255, 0.12));
+.thinking-orb {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+
+.thinking-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(123, 147, 255, 0.15) 90deg, #7b93ff 300deg, #c6d2ff 360deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  animation: thinking-spin 1s linear infinite;
+  filter: drop-shadow(0 0 6px rgba(123, 147, 255, 0.7));
+}
+
+.thinking-core {
+  position: absolute;
+  inset: 11px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #c6d2ff, #4d6bff 70%);
+  box-shadow: 0 0 14px rgba(77, 107, 255, 0.9);
+  animation: thinking-pulse 1.4s ease-in-out infinite;
+}
+
+.thinking-text {
+  font-size: 14px;
+  color: var(--muted);
+  background: linear-gradient(90deg, var(--muted) 0%, #fff 50%, var(--muted) 100%);
   background-size: 200% 100%;
-  animation: shimmer 1.4s linear infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation:
+    thinking-in 0.35s ease-out,
+    thinking-shine 2.2s linear infinite;
 }
 
-@keyframes shimmer {
+.thinking-dots::after {
+  content: "";
+  animation: thinking-dots 1.2s steps(4) infinite;
+}
+
+@keyframes thinking-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes thinking-pulse {
+  0%,
+  100% {
+    transform: scale(0.75);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes thinking-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes thinking-shine {
   from {
     background-position: 200% 0;
   }
   to {
     background-position: -200% 0;
+  }
+}
+
+@keyframes thinking-dots {
+  0% {
+    content: "";
+  }
+  25% {
+    content: ".";
+  }
+  50% {
+    content: "..";
+  }
+  75% {
+    content: "...";
   }
 }
 

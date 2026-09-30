@@ -61,29 +61,61 @@ export type HistoryTurn = {
   answer: string;
 };
 
+type StreamEvent =
+  | { type: "status"; text: string }
+  | { type: "result"; data: AskQuestionResponse }
+  | { type: "error"; detail: string };
+
+/**
+ * Вопрос консультанту. Ответ идёт потоком (Server-Sent Events): пока он готовится, onStatus
+ * получает, что сейчас делается («Ищу в базе знаний», «Ищу, кто декан ФИРТ»), в конце - результат.
+ */
 export async function askQuestion(
   question: string,
   facts: Fact[] = [],
   history: HistoryTurn[] = [],
+  onStatus?: (text: string) => void,
 ): Promise<AskQuestionResponse> {
-  const response = await fetch(apiUrl("/question"), {
+  const response = await fetch(apiUrl("/question/stream"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ question, facts: facts.map(({ field, value }) => ({ field, value })), history }),
   });
 
-  if (!response.ok) {
+  if (!response.ok || !response.body) {
     const body = await response.json().catch(() => null);
     throw new Error(body?.detail ?? `Сервер ответил ${response.status}`);
   }
 
-  const data: AskQuestionResponse = await response.json();
-  return {
-    answer: data.answer ?? null,
-    clarification: data.clarification ?? null,
-    location: data.location ?? null,
-    route: data.route ?? null,
-  };
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    // события разделены пустой строкой: "data: {...}\n\n"
+    let boundary;
+    while ((boundary = buffer.indexOf("\n\n")) !== -1) {
+      const chunk = buffer.slice(0, boundary);
+      buffer = buffer.slice(boundary + 2);
+      const line = chunk.split("\n").find((item) => item.startsWith("data: "));
+      if (!line) continue;
+      const event: StreamEvent = JSON.parse(line.slice(6));
+      if (event.type === "status") onStatus?.(event.text);
+      else if (event.type === "error") throw new Error(event.detail);
+      else {
+        const data = event.data;
+        return {
+          answer: data.answer ?? null,
+          clarification: data.clarification ?? null,
+          location: data.location ?? null,
+          route: data.route ?? null,
+        };
+      }
+    }
+  }
+  throw new Error("Соединение оборвалось, попробуйте ещё раз.");
 }
 
 // [Источник: …] или (Источник: …) - LLM пишет и так, и так; внутри может быть несколько через «;»

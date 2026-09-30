@@ -245,3 +245,34 @@ async def test_falls_back_to_joined_parts_when_composing_fails(
     result = await use_case.execute("какие пары и где деканат")
 
     assert "пар нет" in result.text and "Деканат в корпусе 2." in result.text
+
+
+async def test_reports_progress_while_answering(make_question, indexed_sample) -> None:
+    statuses: list[str] = []
+
+    async def progress(text: str) -> None:
+        statuses.append(text)
+
+    await make_question(answer="Деканат в корпусе 2.").execute(test_question, progress=progress)
+
+    assert statuses[0] == "Разбираю вопрос"
+    assert "Ищу в базе знаний" in statuses
+
+
+async def test_search_can_ask_for_clarification_and_it_is_not_cached(
+    make_question, indexed_sample, fake_question_cache_service
+) -> None:
+    clarify = json.dumps({"clarify": {"field": "faculty", "question": "Какого факультета?"}}, ensure_ascii=False)
+
+    result = await make_question(answer=clarify).execute(test_question)
+
+    assert result == ClarificationRequest(field="faculty", question="Какого факультета?")
+    assert fake_question_cache_service.store == {}
+
+
+async def test_search_does_not_clarify_again_once_facts_are_given(make_question, indexed_sample) -> None:
+    clarify = json.dumps({"clarify": {"field": "faculty", "question": "Какого факультета?"}}, ensure_ascii=False)
+
+    result = await make_question(answer=clarify).execute(test_question, facts=[KnownFact(field="faculty", value="ФИРТ")])
+
+    assert not isinstance(result, ClarificationRequest)
