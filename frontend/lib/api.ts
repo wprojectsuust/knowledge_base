@@ -31,7 +31,7 @@ export type Fact = {
 export type RoutePoint = {
   x: number;
   y: number;
-  /** 0 - улица */
+  /** 0 - улица, -1 - подземный переход */
   floor: number;
   building: string | null;
 };
@@ -45,6 +45,8 @@ export type Route = {
   distance_m: number;
   minutes: number;
   points: RoutePoint[];
+  /** тот же путь по улице, если основной идёт тёплыми переходами - рисуется пунктиром */
+  alternative?: { distance_m: number; minutes: number; points: RoutePoint[] } | null;
 };
 
 /** Ровно одно из answer / clarification не null. route - если спросили «как пройти». */

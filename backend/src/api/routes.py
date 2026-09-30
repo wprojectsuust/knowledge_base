@@ -206,7 +206,13 @@ async def get_campuses(campus_service: CampusService = Depends(get_campus_servic
                     for b in campus.buildings
                 ],
                 "bridges": [
-                    {"from": b.from_building, "to": b.to_building, "floors": b.floors, "rect": b.rect}
+                    {
+                        "from": b.from_building,
+                        "to": b.to_building,
+                        "floors": b.floors,
+                        "rect": b.rect,
+                        "underground": b.underground,
+                    }
                     for b in campus.bridges
                 ],
                 "stairs": [{"building": s.building, "at": s.at} for s in campus.stairs],

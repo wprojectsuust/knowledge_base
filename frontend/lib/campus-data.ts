@@ -15,7 +15,7 @@ export type Point = [number, number];
 export type Direction = "up" | "down" | "left" | "right";
 
 export type Building = { id: string; name: string; label: string | null; floors: number; wings: Rect[] };
-export type Bridge = { from: string; to: string; floors: number[]; rect: Rect };
+export type Bridge = { from: string; to: string; floors: number[]; rect: Rect; underground?: boolean };
 export type Stairs = { building: string; at: Point };
 export type Place = { id: string; kind: "cafe" | "place"; building: string; floor: number; label: string; at: Point };
 export type Entrance = { building: string; at: Point; dir: Direction };

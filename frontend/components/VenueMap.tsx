@@ -16,7 +16,10 @@ type VenueMapProps = {
 };
 
 function describe(location: Location | null | undefined, route: Route | null | undefined) {
-  if (route) return [`${route.from_label} → ${route.to_label}`, `≈${Math.round(route.distance_m)} м · ${route.minutes} мин`];
+  if (route) {
+    const street = route.alternative ? ` · по улице ≈${Math.round(route.alternative.distance_m)} м` : "";
+    return [`${route.from_label} → ${route.to_label}`, `≈${Math.round(route.distance_m)} м · ${route.minutes} мин${street}`];
+  }
   if (!location) return ["Карта кампуса"];
   const parts = [`Корпус ${location.building}`];
   if (location.room) parts.push(`кабинет ${location.building}-${location.room}`);

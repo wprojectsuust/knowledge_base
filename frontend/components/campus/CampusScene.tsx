@@ -247,21 +247,43 @@ function EntranceArrow({ x, z, dir }: { x: number; z: number; dir: Direction }) 
   );
 }
 
+const TUNNEL_Y = -2.2; // подземный переход - под уровнем земли
+
 function routeY(floor: number) {
+  if (floor < 0) return TUNNEL_Y;
   return floor === 0 ? 0.8 : (floor - 1) * FLOOR_HEIGHT + 1.4;
+}
+
+function toVectors(campus: Campus, points: Route["points"]) {
+  return points.map((p) => {
+    const [x, z] = toMeters(campus, [p.x, p.y]);
+    return new THREE.Vector3(x, routeY(p.floor), z);
+  });
+}
+
+/** Уличный вариант маршрута (если основной идёт переходами): янтарный пунктир без анимации. */
+function StreetPath({ campus, points }: { campus: Campus; points: Route["points"] }) {
+  const vectors = useMemo(() => toVectors(campus, points), [campus, points]);
+  return (
+    <Line
+      points={vectors}
+      color="#ffb547"
+      lineWidth={2.5}
+      dashed
+      dashSize={1.6}
+      gapSize={1.6}
+      depthTest={false}
+      transparent
+      opacity={0.85}
+      renderOrder={9}
+    />
+  );
 }
 
 /** Маршрут: светящаяся линия с бегущим пунктиром поверх всего (depthTest off), старт и финиш. */
 function RoutePath({ campus, route }: { campus: Campus; route: Route }) {
   const dashed = useRef<Line2>(null);
-  const points = useMemo(
-    () =>
-      route.points.map((p) => {
-        const [x, z] = toMeters(campus, [p.x, p.y]);
-        return new THREE.Vector3(x, routeY(p.floor), z);
-      }),
-    [campus, route],
-  );
+  const points = useMemo(() => toVectors(campus, route.points), [campus, route]);
 
   useFrame((_, delta) => {
     const material = dashed.current?.material as { dashOffset: number } | undefined;
@@ -448,6 +470,23 @@ function CampusCanvas({
 
       {campus.bridges.map((bridge, i) => {
         const r = rectToMeters(campus, bridge.rect);
+        if (bridge.underground) {
+          // подземный переход (6-7 под КПП): полупрозрачный фиолетовый тоннель под землёй
+          return (
+            <mesh key={`${i}-tunnel`} position={[r.x, TUNNEL_Y, r.z]} renderOrder={8}>
+              <boxGeometry args={[r.w, 2.4, r.d]} />
+              <meshStandardMaterial
+                color="#a77bff"
+                emissive="#a77bff"
+                emissiveIntensity={0.7}
+                transparent
+                opacity={isFocused ? 0.15 : 0.55}
+                depthTest={false}
+                depthWrite={false}
+              />
+            </mesh>
+          );
+        }
         return bridge.floors.map((floor) => (
           <mesh key={`${i}-${floor}`} position={[r.x, (floor - 1) * FLOOR_HEIGHT + SLAB / 2, r.z]}>
             <boxGeometry args={[r.w, SLAB * 0.7, r.d]} />
@@ -566,6 +605,7 @@ function CampusCanvas({
           return <EntranceArrow key={i} x={x} z={z} dir={entrance.dir} />;
         })}
 
+      {showRoute && route?.alternative && <StreetPath campus={campus} points={route.alternative.points} />}
       {showRoute && route && <RoutePath campus={campus} route={route} />}
 
       <CameraControls

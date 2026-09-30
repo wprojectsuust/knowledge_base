@@ -99,3 +99,30 @@ def test_route_to_non_numbered_building(navigator) -> None:
     assert route is not None
     assert route.to_label == "спортзал"
     assert "Войдите в спортзал" in route.text()
+
+
+def test_goes_from_6_to_7_through_the_tunnel_under_kpp(navigator) -> None:
+    route = navigator.route(parse_target("6@1"), parse_target("7@1"))
+
+    assert route is not None
+    text = "\n".join(route.steps)
+    assert "подземн" in text
+    assert "Выйдите" not in text  # на улицу не выходим
+    assert any(point.floor == -1 for point in route.points)  # под землёй - для 3D-линии ниже уровня земли
+
+
+def test_prefers_warm_passages_and_offers_street_route_as_alternative(navigator) -> None:
+    route = navigator.route(parse_target("2@2"), parse_target("7@1"))
+
+    assert route is not None
+    assert all(point.floor != 0 for point in route.points)  # ни шагу по улице
+    assert route.alternative is not None
+    assert any(point.floor == 0 for point in route.alternative.points)
+    assert "По улице" in route.text()
+
+
+def test_no_alternative_when_route_already_goes_outside(navigator) -> None:
+    route = navigator.route(parse_target("kpp"), parse_target("7-404"))
+
+    assert route is not None
+    assert route.alternative is None

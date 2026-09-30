@@ -43,6 +43,14 @@ class RoutePointOut(BaseModel):
     building: str | None = None
 
 
+class StreetRouteOut(BaseModel):
+    """Тот же путь по улице - на карте пунктиром рядом с основным (через переходы)."""
+
+    distance_m: float
+    minutes: int
+    points: list[RoutePointOut]
+
+
 class RouteOut(BaseModel):
     campus: str
     from_label: str
@@ -52,6 +60,7 @@ class RouteOut(BaseModel):
     distance_m: float
     minutes: int
     points: list[RoutePointOut]
+    alternative: StreetRouteOut | None = None
 
 
 class RouteRequestIn(BaseModel):
@@ -102,5 +111,16 @@ def route_out(route) -> RouteOut:
         text=route.text(),
         distance_m=round(route.distance_m, 1),
         minutes=route.minutes,
-        points=[RoutePointOut(x=p.x, y=p.y, floor=p.floor, building=p.building) for p in route.points],
+        points=_points(route.points),
+        alternative=StreetRouteOut(
+            distance_m=round(route.alternative.distance_m, 1),
+            minutes=route.alternative.minutes,
+            points=_points(route.alternative.points),
+        )
+        if route.alternative
+        else None,
     )
+
+
+def _points(points) -> list[RoutePointOut]:
+    return [RoutePointOut(x=p.x, y=p.y, floor=p.floor, building=p.building) for p in points]

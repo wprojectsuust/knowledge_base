@@ -146,12 +146,18 @@ export default function MapPage() {
             <li className="map-steps-total">
               ≈{Math.round(route.distance_m)} м · {route.minutes} мин
             </li>
+            {route.alternative && (
+              <li className="map-steps-total map-steps-street">
+                По улице (пунктир): ≈{Math.round(route.alternative.distance_m)} м · {route.alternative.minutes} мин
+              </li>
+            )}
           </ol>
         )}
       </div>
 
       <p className="map-hint">
-        Янтарные блоки — лестницы, голубые — переходы. Вращайте мышью или пальцем, колесо или щипок — масштаб, клик по
+        Янтарные блоки — лестницы, голубые — переходы, фиолетовый — подземный переход под КПП; маршрут ведёт
+        тёплыми переходами, уличный вариант — янтарным пунктиром. Вращайте мышью или пальцем, колесо или щипок — масштаб, клик по
         корпусу — перелёт к нему, этаж — открыть его с кабинетами. Корпуса и переходы — по схеме UUST MAPS; этажность и раскладка
         кабинетов пока примерные.
       </p>

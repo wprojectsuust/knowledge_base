@@ -21,7 +21,13 @@ def _campus_from_dict(raw: dict) -> Campus:
             for b in raw["buildings"]
         ),
         bridges=tuple(
-            Bridge(from_building=b["from"], to_building=b["to"], floors=tuple(b["floors"]), rect=tuple(b["rect"]))
+            Bridge(
+                from_building=b["from"],
+                to_building=b["to"],
+                floors=tuple(b["floors"]),
+                rect=tuple(b["rect"]),
+                underground=b.get("underground", False),
+            )
             for b in raw.get("bridges", [])
         ),
         stairs=tuple(Stairs(building=s["building"], at=tuple(s["at"])) for s in raw.get("stairs", [])),

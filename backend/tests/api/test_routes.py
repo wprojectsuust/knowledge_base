@@ -350,3 +350,13 @@ def test_question_stream_reports_llm_outage_as_error_event() -> None:
 
     assert events[-1]["type"] == "error"
     assert "перегружена" in events[-1]["detail"]
+
+
+def test_route_includes_street_alternative_when_going_through_passages() -> None:
+    client = _client_with_overrides({})
+
+    body = client.post("/route", json={"source": "2@2", "target": "7@1"}).json()
+
+    assert body["alternative"]["distance_m"] > 0
+    assert any(point["floor"] == 0 for point in body["alternative"]["points"])
+    assert any(point["floor"] == -1 for point in body["points"])  # подземный переход под КПП

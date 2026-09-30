@@ -22,7 +22,9 @@ ROOM_LENGTH_M = 6.0  # метров вдоль коридора на один к
 CORRIDOR_M = 2.4
 TWO_ROWS_MIN_WIDTH_M = 10.0  # уже - кабинеты в один ряд
 STAIRS_COST_M = 12.0  # «цена» одного лестничного пролёта в метрах ходьбы
-OUTDOOR_PENALTY = 1.3  # по улице чуть «дороже», чем внутри, - при равенстве ведём через корпуса
+# по улице втрое «дороже», чем внутри: ведём тёплыми переходами, даже если так заметно длиннее
+# (уличный вариант показываем отдельно как альтернативу - Route.alternative)
+OUTDOOR_PENALTY = 3.0
 OUTSIDE_OFFSET_PX = 10  # насколько точка «перед входом» отстоит от стены
 WALK_SPEED_M_PER_MIN = 70
 
@@ -45,6 +47,7 @@ class Bridge:
     to_building: str
     floors: tuple[int, ...]
     rect: Rect
+    underground: bool = False  # подземный переход (6-7 под КПП): вход с 1 этажа, на карте - под землёй
 
 
 @dataclass(frozen=True)
@@ -133,7 +136,7 @@ class RouteTarget:
 class RoutePoint:
     x: float
     y: float
-    floor: int  # 0 - улица
+    floor: int  # 0 - улица, -1 - подземный переход
     building: str | None = None
 
 
@@ -145,6 +148,8 @@ class Route:
     points: list[RoutePoint]
     steps: list[str]
     distance_m: float
+    # тот же путь по улице, если основной идёт тёплыми переходами - на карте рисуется вторым
+    alternative: "Route | None" = None
 
     @property
     def minutes(self) -> int:
@@ -152,11 +157,18 @@ class Route:
 
     def text(self) -> str:
         numbered = "\n".join(f"{i}. {step}" for i, step in enumerate(self.steps, start=1))
+        street = (
+            f"По улице: около {round(self.alternative.distance_m, -1):.0f} м, "
+            f"примерно {self.alternative.minutes} мин (на карте - пунктиром).\n"
+            if self.alternative
+            else ""
+        )
         return (
             f"Маршрут: {self.from_label} → {self.to_label}\n{numbered}\n"
             f"Всего около {round(self.distance_m, -1):.0f} м, примерно {self.minutes} мин. "
-            "Расположение кабинетов на карте приблизительное."
-        )
+            "Расположение кабинетов на карте приблизительное.\n"
+            f"{street}"
+        ).rstrip()
 
 
 # ---------- разбор цели ----------
@@ -276,7 +288,7 @@ class _Node:
     point: Point
     floor: int
     building: str | None
-    kind: str  # corridor | room | stairs | bridge | door | outside | place
+    kind: str  # corridor | room | stairs | bridge | tunnel | door | outside | place
     label: str | None = None
 
 
@@ -332,21 +344,31 @@ class CampusNavigator:
         ends = self._resolve(target)
         if not starts or not ends:
             return None
-        path = self._dijkstra(starts, ends)
+        route = self._route_along(self._dijkstra(starts, ends), source, target)
+        if route is None:
+            return None
+        if all(point.floor != 0 for point in route.points):
+            # весь путь под крышей - покажем и уличный вариант, если он есть
+            street = self._route_along(self._dijkstra(starts, ends, passages=False), source, target)
+            if street is not None and any(p.floor == 0 for p in street.points):
+                route.alternative = street
+        return route
+
+    def _route_along(self, path: list[str] | None, source: RouteTarget, target: RouteTarget) -> Route | None:
         if path is None:
             return None
-
         nodes = [self._graph.nodes[node_id] for node_id in path]
-        points = [RoutePoint(n.point[0], n.point[1], n.floor, n.building) for n in nodes]
-        distance = sum(
-            self._edge_meters(a, b) for a, b in zip(nodes, nodes[1:])
-        )
+        points = [
+            RoutePoint(n.point[0], n.point[1], -1 if n.kind == "tunnel" else n.floor, n.building) for n in nodes
+        ]
+        distance = sum(self._edge_meters(a, b) for a, b in zip(nodes, nodes[1:]))
+        from_label, to_label = self._label(source, nodes[0]), self._label(target, nodes[-1])
         return Route(
             campus=self.campus.id,
-            from_label=self._label(source, nodes[0]),
-            to_label=self._label(target, nodes[-1]),
+            from_label=from_label,
+            to_label=to_label,
             points=points,
-            steps=self._describe(nodes, self._label(source, nodes[0]), self._label(target, nodes[-1])),
+            steps=self._describe(nodes, from_label, to_label),
             distance_m=distance,
         )
 
@@ -402,6 +424,7 @@ class CampusNavigator:
                 previous = node_id
 
         for index, bridge in enumerate(campus.bridges):
+            kind = "tunnel" if bridge.underground else "bridge"
             center = ((bridge.rect[0] + bridge.rect[2]) / 2, (bridge.rect[1] + bridge.rect[3]) / 2)
             for floor in bridge.floors:
                 ends = []
@@ -410,7 +433,7 @@ class CampusNavigator:
                     if building is None or floor > building.floors:
                         break
                     node_id = f"b:{index}:{floor}:{building_id}"
-                    self._attach(building, floor, center, _Node(node_id, center, floor, building_id, "bridge"))
+                    self._attach(building, floor, center, _Node(node_id, center, floor, building_id, kind))
                     ends.append(node_id)
                 if len(ends) == 2:
                     g.link(ends[0], ends[1], max(bridge.rect[2] - bridge.rect[0], bridge.rect[3] - bridge.rect[1]) * campus.scale)
@@ -484,7 +507,8 @@ class CampusNavigator:
             (r for r in rooms if r.number == digits), None
         )
 
-    def _dijkstra(self, starts: set[str], ends: set[str]) -> list[str] | None:
+    def _dijkstra(self, starts: set[str], ends: set[str], passages: bool = True) -> list[str] | None:
+        """passages=False - без переходов между корпусами (уличный вариант маршрута)."""
         distances = {node: 0.0 for node in starts}
         previous: dict[str, str] = {}
         queue = [(0.0, node) for node in starts]
@@ -499,12 +523,18 @@ class CampusNavigator:
                     path.append(previous[path[-1]])
                 return path[::-1]
             for neighbour, weight in self._graph.edges[node]:
+                if not passages and self._is_passage(node, neighbour):
+                    continue
                 new_cost = cost + weight
                 if new_cost < distances.get(neighbour, math.inf):
                     distances[neighbour] = new_cost
                     previous[neighbour] = node
                     heapq.heappush(queue, (new_cost, neighbour))
         return None
+
+    def _is_passage(self, a: str, b: str) -> bool:
+        na, nb = self._graph.nodes[a], self._graph.nodes[b]
+        return na.kind in ("bridge", "tunnel") and na.kind == nb.kind and na.building != nb.building
 
     def _edge_meters(self, a: _Node, b: _Node) -> float:
         if a.kind == "stairs" and b.kind == "stairs" and a.floor != b.floor:
@@ -564,7 +594,12 @@ class CampusNavigator:
                 walked = 0.0
                 i = j
                 continue
-            if a.kind == "bridge" and b.kind == "bridge" and a.building != b.building:
+            if a.kind == "tunnel" and b.kind == "tunnel" and a.building != b.building:
+                steps.append(
+                    f"Спуститесь в подземный переход и пройдите под КПП в {self._building_name(b.building)}{meters()}."
+                )
+                walked = 0.0
+            elif a.kind == "bridge" and b.kind == "bridge" and a.building != b.building:
                 steps.append(f"Пройдите по переходу на {a.floor} этаже в {self._building_name(b.building)}{meters()}.")
                 walked = 0.0
             elif a.kind == "outside" and b.kind == "door":

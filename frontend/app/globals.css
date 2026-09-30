@@ -1312,6 +1312,10 @@ input {
   color: var(--muted);
 }
 
+.map-steps-street {
+  color: #ffb547;
+}
+
 .campus-route-start {
   display: inline-block;
   padding: 3px 9px;
