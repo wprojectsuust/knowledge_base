@@ -145,3 +145,14 @@ def test_student_services_are_where_students_find_them(navigator, place, buildin
     assert route is not None
     assert route.points[-1].building == building
     assert route.points[-1].floor == floor
+
+
+def test_building_5_is_entered_only_from_karl_marx_street_or_by_passages(navigator) -> None:
+    campus = navigator.campus
+    building = campus.building("5")
+    doors = [entrance for entrance in campus.entrances if entrance.building == "5"]
+
+    # единственный вход с улицы - с северной стороны, где ул. Карла Маркса; со двора входа нет
+    assert len(doors) == 1
+    assert doors[0].at[1] == min(wing[1] for wing in building.wings)
+    assert doors[0].dir == "down"
