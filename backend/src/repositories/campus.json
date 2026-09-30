@@ -587,17 +587,6 @@
      ]
     },
     {
-     "id": "cafe-6",
-     "kind": "cafe",
-     "building": "6",
-     "floor": 2,
-     "label": "Буфет",
-     "at": [
-      665,
-      178
-     ]
-    },
-    {
      "id": "cafe-8",
      "kind": "cafe",
      "building": "8",
