@@ -30,3 +30,10 @@ async def test_find_orders_and_limits(fake_asyncpg_pool) -> None:
 
     sql, *params = fake_asyncpg_pool.fetch.call_args.args
     assert "ORDER BY starts_at DESC LIMIT $1" in sql and params == [10]
+
+
+def test_keywords_match_any_word_in_title() -> None:
+    where, params = build_where(EventQuery(keywords=("хакатон", "олимпиад")))
+
+    assert "(title ILIKE $1 OR title ILIKE $2)" in where
+    assert params == ["%хакатон%", "%олимпиад%"]

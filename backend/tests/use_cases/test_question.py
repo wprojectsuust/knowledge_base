@@ -302,3 +302,36 @@ async def test_falls_back_to_knowledge_base_when_place_is_not_on_the_map(make_qu
     assert result.route is None
     assert result.text.startswith("Главный корпус - ул. Заки Валиди, 32.")  # ответ из базы знаний
     assert "не отмечено" in result.text  # и честно - почему без маршрута
+
+
+async def test_events_question_is_answered_from_the_catalog_not_the_vector_base(
+    make_fake_llm_service, fake_embedding_service, fake_vector_search_service, fake_data_store_service,
+    fake_question_cache_service, fake_schedule_service, fake_schedule_cache_service,
+) -> None:
+    from datetime import datetime, timezone
+
+    from src.domain.event import Event
+    from src.use_cases.find_events import FindEvents
+
+    class FakeEvents:
+        async def find(self, query):
+            return [Event(slug="hack", title="Хакатон «Код УУНиТ»", starts_at=datetime(2026, 10, 20, 6, tzinfo=timezone.utc),
+                          url="https://uust.ru/events/get/hack/", image=None, topic="Наука и технологии", format="Соревнование и игра")]
+
+    answer_llm = make_fake_llm_service("20 октября - хакатон «Код УУНиТ».")
+    use_case = Question(
+        PlanQuestion(make_fake_llm_service(plan(events={"question": "будут ли хакатоны", "keywords": ["хакатон"]}))),
+        SearchDataByListOfStr(fake_embedding_service, fake_vector_search_service, fake_data_store_service),
+        AnalyzeDataByLLMForUser(answer_llm),
+        fake_question_cache_service,
+        GetSchedule(fake_schedule_service, fake_schedule_cache_service, fake_embedding_service,
+                    fake_vector_search_service, fake_data_store_service, AnalyzeScheduleForUser(make_fake_llm_service(""))),
+        find_events=FindEvents(FakeEvents()),
+    )
+
+    result = await use_case.execute("будут ли хакатоны?")
+
+    assert result == Answer(text="20 октября - хакатон «Код УУНиТ».")
+    assert "https://uust.ru/events/get/hack/" in answer_llm.last_prompt  # каталог - в контексте ответа
+    assert fake_embedding_service.call_count == 0  # в векторную базу не ходили
+    assert fake_question_cache_service.store == {}  # ответ зависит от даты - не кэшируем

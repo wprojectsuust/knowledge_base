@@ -167,3 +167,31 @@ async def test_prompt_asks_for_queries_in_students_own_words(fake_llm_service) -
     await PlanQuestion(fake_llm_service).execute("телефон садится что делать")
 
     assert "не придумывай новых тем" in fake_llm_service.last_prompt
+
+
+async def test_parses_events_part_with_keywords_dates_and_topic(fake_llm_service) -> None:
+    from datetime import date
+
+    from src.domain.plan import EventsTask
+
+    fake_llm_service.response = _plan(
+        events={"question": "будут ли хакатоны в октябре", "keywords": ["хакатон"], "date_from": "2026-10-01",
+                "date_to": "2026-10-31", "topic": "наука и технологии"}
+    )
+
+    plan = await PlanQuestion(fake_llm_service).execute("будут ли хакатоны в октябре?")
+
+    assert plan.events == EventsTask(
+        question="будут ли хакатоны в октябре", keywords=("хакатон",), date_from=date(2026, 10, 1),
+        date_to=date(2026, 10, 31), topic="Наука и технологии",
+    )
+    assert '"events"' in fake_llm_service.last_prompt
+
+
+async def test_events_part_tolerates_missing_or_broken_fields(fake_llm_service) -> None:
+    fake_llm_service.response = _plan(events={"question": "какие есть мероприятия", "date_from": "завтра", "topic": "кулинария"})
+
+    plan = await PlanQuestion(fake_llm_service).execute("какие есть мероприятия?")
+
+    assert plan.events is not None
+    assert plan.events.date_from is None and plan.events.topic is None and plan.events.keywords == ()

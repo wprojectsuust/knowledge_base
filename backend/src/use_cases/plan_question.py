@@ -1,13 +1,14 @@
 import json
 import logging
 import re
-from datetime import datetime
+from datetime import date, datetime
 
 from src import config
 
 from src.domain.clarification import ClarificationRequest
 from src.domain.dialog import DialogTurn, format_history
-from src.domain.plan import QuestionPlan, SearchTask
+from src.domain.event import TOPICS, normalize_topic
+from src.domain.plan import EventsTask, QuestionPlan, SearchTask
 from src.domain.route import RouteRequest
 from src.domain.schedule import ScheduleRequest
 from src.logging_utils import preview
@@ -25,6 +26,17 @@ _REPLY_RULES = (
     "  Не отвечай сам на вопросы о вузе (правила, сроки, места, люди, документы, расписание на другой день), "
     "даже если уверен в ответе, - это search/schedule/route: факты берутся только из базы знаний. Если в "
     "сообщении есть хоть одна такая часть - reply null. Сомневаешься - reply null.\n"
+)
+
+_EVENTS_RULES = (
+    '- "events": {"question": "<что спросили о мероприятиях>", "keywords": ["<0-3 основы слов из названия '
+    'события, например хакатон, олимпиад, концерт>"], "date_from": "YYYY-MM-DD или null", "date_to": '
+    '"YYYY-MM-DD или null", "topic": "<тематика или null>"} - вопросы о мероприятиях вуза: что проходит, '
+    "какие будут/были конкурсы, олимпиады, хакатоны, фестивали, конференции, концерты, когда и где событие. "
+    "Ищется в каталоге мероприятий (там даты и тематики), не в базе знаний. «На этой неделе», «в октябре» - "
+    "переведи в даты; без указания времени - даты null. keywords пусты, если спросили вообще («какие есть "
+    f"мероприятия»). Тематика - одна из: {', '.join(TOPICS[:-1])}.\n"
+    "  Как участвовать, правила, стипендии и документы - это search (можно вместе с events).\n"
 )
 
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -71,7 +83,7 @@ class PlanQuestion:
             else ""
         )
         places = f"  Известные места:\n{self._places_hint}\n" if self._places_hint else ""
-        keys = '"reply", "search", "schedule", "route"' + (', "clarify"' if can_clarify else "")
+        keys = '"reply", "search", "schedule", "route", "events"' + (', "clarify"' if can_clarify else "")
         now = datetime.now(config.LOCAL_TZ)
         return (
             "Ты - планировщик консультанта УУНиТ. Разбери сообщение студента на части, которые нужно "
@@ -95,6 +107,7 @@ class PlanQuestion:
             "не route). Обозначения: kpp - КПП; 7-404 - кабинет 404 в корпусе 7; 7 - корпус 7; 7@3 - 3 этаж "
             "корпуса 7; place:<id> - ТОЛЬКО id из списка ниже, свои не придумывай.\n"
             f"{places}"
+            + _EVENTS_RULES
             + (_CLARIFY_RULES if can_clarify else "")
             + _REPLY_RULES
             + "\nВсе формулировки - самостоятельные, понятные без диалога. В question части сохраняй "
@@ -102,7 +115,7 @@ class PlanQuestion:
             "«какие пары»).\n"
             'Пример: "какие завтра пары у ТОП-106Б и где деканат ФИРТ" -> {"search": {"question": '
             '"где находится деканат ФИРТ", "queries": ["деканат ФИРТ", "где деканат ФИРТ"]}, "schedule": '
-            '{"group": "ТОП-106Б", "date": "<завтра>", "question": "какие пары"}, "route": null, "reply": null'
+            '{"group": "ТОП-106Б", "date": "<завтра>", "question": "какие пары"}, "route": null, "events": null, "reply": null'
             + (', "clarify": null' if can_clarify else "")
             + "}"
         )
@@ -140,6 +153,18 @@ class PlanQuestion:
             source = raw_route.get("from")
             route = RouteRequest(source=str(source).strip() if source else None, target=str(raw_route["to"]).strip())
 
+        events = None
+        if isinstance(raw_events := data.get("events"), dict):
+            events = EventsTask(
+                question=str(raw_events.get("question") or "").strip() or question,
+                keywords=tuple(
+                    str(word).strip().lower() for word in raw_events.get("keywords") or [] if str(word).strip()
+                )[:3],
+                date_from=_parse_date(raw_events.get("date_from")),
+                date_to=_parse_date(raw_events.get("date_to")),
+                topic=topic if (topic := normalize_topic(raw_events.get("topic"))) != "Другое" else None,
+            )
+
         clarification = None
         if can_clarify and isinstance(raw_clarify := data.get("clarify"), dict):
             field = str(raw_clarify.get("field") or "").strip()
@@ -147,9 +172,21 @@ class PlanQuestion:
             if _FIELD.match(field) and clarify_question:
                 clarification = ClarificationRequest(field=field, question=clarify_question)
 
-        plan = QuestionPlan(search=search, schedule=schedule, route=route, clarification=clarification)
+        plan = QuestionPlan(
+            search=search, schedule=schedule, route=route, events=events, clarification=clarification
+        )
         reply = str(data.get("reply") or "").strip()
         if reply and plan == QuestionPlan():
             # ответ из диалога - только когда больше ничего не нужно: «спасибо, а где деканат?» - это search
             return QuestionPlan(reply=reply)
         return plan if plan != QuestionPlan() else fallback
+
+
+def _parse_date(value) -> date | None:
+    text = str(value or "").strip()
+    if not _ISO_DATE.match(text):
+        return None
+    try:
+        return date.fromisoformat(text)
+    except ValueError:
+        return None

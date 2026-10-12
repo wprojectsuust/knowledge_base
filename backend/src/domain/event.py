@@ -108,5 +108,8 @@ class EventQuery:
     formats: tuple[str, ...] = ()
     online: bool | None = None
     text: str = ""
+    # любое из слов в названии (для консультанта: «хакатон», «олимпиад») - в отличие от text,
+    # где ищется вся строка целиком (поиск на странице каталога)
+    keywords: tuple[str, ...] = ()
     newest_first: bool = False  # прошедшие удобнее листать от свежих к старым
     limit: int = 60

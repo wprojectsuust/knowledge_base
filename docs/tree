@@ -86,6 +86,7 @@
 │   │   │   ├── build_route.py
 │   │   │   ├── classify_events.py
 │   │   │   ├── compose_answer.py
+│   │   │   ├── find_events.py
 │   │   │   ├── get_schedule.py
 │   │   │   ├── import_documents.py
 │   │   │   ├── import_events.py
@@ -147,6 +148,7 @@
 │   │   │   ├── test_classify_events.py
 │   │   │   ├── test_compose_answer.py
 │   │   │   ├── test_events_catalog.py
+│   │   │   ├── test_find_events.py
 │   │   │   ├── test_get_schedule.py
 │   │   │   ├── test_import_documents.py
 │   │   │   ├── test_import_news.py
@@ -327,19 +329,19 @@
 
 Строки кода
 ============================================================
-Всего файлов: 270
-Всего строк: 70129
+Всего файлов: 272
+Всего строк: 70459
 
 По расширениям:
   .png                 30034
   .json                9629
-  .py                  8917
-  .md                  7392
+  .py                  9227
+  .md                  7410
   .html                7169
   .tsx                 2319
   .css                 2065
   .jpg                 599
-  (без расширения)     497
+  (без расширения)     499
   .ts                  459
   .jsonl               383
   .yml                 203

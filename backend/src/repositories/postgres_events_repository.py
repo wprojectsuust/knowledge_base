@@ -49,6 +49,9 @@ def build_where(query: EventQuery, with_facet_filters: bool = True) -> tuple[str
         clauses.append(f"starts_at < {param(end)}")
     if query.text.strip():
         clauses.append(f"title ILIKE {param('%' + query.text.strip() + '%')}")
+    words = [word.strip() for word in query.keywords if word.strip()]
+    if words:
+        clauses.append("(" + " OR ".join(f"title ILIKE {param('%' + word + '%')}" for word in words) + ")")
     if with_facet_filters:
         if query.topics:
             clauses.append(f"topic = ANY({param(list(query.topics))}::text[])")

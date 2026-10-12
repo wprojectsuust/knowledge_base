@@ -28,6 +28,7 @@ from src.use_cases.analyze_schedule import AnalyzeScheduleForUser
 from src.use_cases.build_route import BuildRoute
 from src.use_cases.classify_events import ClassifyEvents
 from src.use_cases.compose_answer import ComposeAnswer
+from src.use_cases.find_events import FindEvents
 from src.use_cases.get_schedule import GetSchedule
 from src.use_cases.import_documents import ImportDocuments
 from src.use_cases.import_events import ImportEvents
@@ -164,6 +165,7 @@ def get_question_use_case() -> Question:
         build_route=get_build_route_use_case(),
         compose_answer=ComposeAnswer(get_llm_service()),
         latest_news=LatestNews(get_data_store_service(), events_service=get_events_service()),
+        find_events=FindEvents(get_events_service()),
     )
 
 
