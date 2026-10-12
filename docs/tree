@@ -179,6 +179,7 @@
 │   │   ├── 010-deploy-images-built-in-ci.md
 │   │   ├── 011-sources-and-markdown.md
 │   │   ├── 012-trivial-questions-without-search.md
+│   │   ├── 013-events-catalog-llm-labels.md
 │   │   ├── README.md
 │   │   └── template.md
 │   ├── images
@@ -193,6 +194,7 @@
 │   ├── campus-map.md
 │   ├── configuration.md
 │   ├── deployment.md
+│   ├── events.md
 │   ├── frontend.md
 │   ├── knowledge-base.md
 │   ├── roadmap.md
@@ -325,19 +327,19 @@
 
 Строки кода
 ============================================================
-Всего файлов: 268
-Всего строк: 69967
+Всего файлов: 270
+Всего строк: 70129
 
 По расширениям:
   .png                 30034
   .json                9629
   .py                  8917
-  .md                  7232
+  .md                  7392
   .html                7169
   .tsx                 2319
   .css                 2065
   .jpg                 599
-  (без расширения)     495
+  (без расширения)     497
   .ts                  459
   .jsonl               383
   .yml                 203

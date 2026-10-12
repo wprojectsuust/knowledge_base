@@ -7,6 +7,7 @@
 | [configuration.md](configuration.md) | Все переменные окружения бэкенда и фронтенда |
 | [deployment.md](deployment.md) | Локальный запуск, прод, nginx, CI/CD, обслуживание |
 | [knowledge-base.md](knowledge-base.md) | Как наполнять базу знаний и писать фрагменты, автоимпорт с uust.ru |
+| [events.md](events.md) | Афиша УУНиТ - каталог мероприятий с фильтрами по дате, тематике и формату |
 | [campus-map.md](campus-map.md) | 3D-карта и навигатор: формат `campus.json`, как строится маршрут |
 | [frontend.md](frontend.md) | Страницы, компоненты, состояние в браузере, адаптив |
 | [testing.md](testing.md) | Пирамида тестов, как писать и запускать |

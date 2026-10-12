@@ -18,6 +18,8 @@
 | `GET` | [`/campus`](#get-campus) | Данные 3D-карты кампуса |
 | `POST` | [`/route`](#post-route) | Маршрут по кампусу |
 | `POST` | [`/news/import`](#post-newsimport) | Подтянуть новости uust.ru прямо сейчас |
+| `GET` | [`/events`](#get-events) | Каталог мероприятий с фильтрами |
+| `POST` | [`/events/import`](#post-eventsimport) | Обновить каталог мероприятий с uust.ru |
 | `GET` | `/` | HTML-страница загрузки данных в базу знаний |
 
 ## Ошибки
@@ -212,3 +214,37 @@ PostgreSQL, вопросы индексируются в Chroma (ADR 004). Кэ�
 `POST /news/import?limit=14` - проверить `limit` (1-100) свежих новостей и загрузить новые.
 Ответ: `{"imported": 2, "skipped": 12, "failed": 0}`. Фоном это происходит и так (см.
 [configuration.md](configuration.md)).
+
+## `GET /events`
+
+Каталог мероприятий ([events.md](events.md)).
+
+| Параметр | Пример | Смысл |
+|---|---|---|
+| `date_from`, `date_to` | `2026-10-12` | Даты включительно, по Уфе |
+| `topic` | `topic=Наука и технологии&topic=Спорт и здоровье` | Тематики, можно несколько |
+| `format` | `format=Конкурс` | Форматы, можно несколько |
+| `online` | `true` | Только онлайн |
+| `q` | `стипендия` | Поиск по названию |
+| `order` | `asc` / `desc` | По дате: от ближайших / от свежих |
+| `limit` | `60` | 1-200 |
+
+```json
+{
+  "events": [{
+    "slug": "razbor-slozhnyh-zadanij-ege-…", "title": "Разбор сложных заданий ЕГЭ: …",
+    "starts_at": "2026-10-17T04:00:00Z", "url": "https://uust.ru/events/get/razbor-…/",
+    "image": "https://uust.ru/media/press-center/events/covers/2026/10/111.jpg",
+    "topic": "Учёба и поступление", "format": "Мастер-класс", "online": false
+  }],
+  "topics":  [{"name": "Наука и технологии", "count": 1}, …],
+  "formats": [{"name": "Мастер-класс", "count": 1}, …]
+}
+```
+
+`topics` и `formats` - все значения справочников со счётчиками при текущих датах и поиске.
+
+## `POST /events/import`
+
+`POST /events/import?pages=15` - проверить `pages` (1-60) страниц uust.ru/events, разметить и
+сохранить новые события. Ответ: `{"imported": 170, "skipped": 10, "failed": 0}`.

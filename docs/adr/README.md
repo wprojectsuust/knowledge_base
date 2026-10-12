@@ -18,6 +18,7 @@ Architecture Decision Records - короткие записи о том, **по�
 | [010](010-deploy-images-built-in-ci.md) | Деплой: образы собираются в CI, сервер только запускает | Принято |
 | [011](011-sources-and-markdown.md) | Источники в ответах и Markdown | Принято |
 | [012](012-trivial-questions-without-search.md) | Тривиальные вопросы - без похода в базу знаний | Принято |
+| [013](013-events-catalog-llm-labels.md) | Каталог мероприятий: данные с uust.ru, разметка LLM с запасными правилами | Принято |
 
 ## Когда писать ADR
 
