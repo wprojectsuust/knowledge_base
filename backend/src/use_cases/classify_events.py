@@ -1,9 +1,9 @@
 import json
 import logging
 
-from src.domain.event import FORMATS, TOPICS, Event, RawEvent, normalize_format, normalize_topic
+from src.domain.event import FORMATS, TOPICS, Event, RawEvent, guess_labels, normalize_format, normalize_topic
 from src.logging_utils import preview
-from src.services.llm_service import LLMService
+from src.services.llm_service import LLMService, LLMUnavailableError
 
 logger = logging.getLogger(__name__)
 
@@ -11,20 +11,27 @@ logger = logging.getLogger(__name__)
 class ClassifyEvents:
     """Размечает события тематикой, форматом и признаком «онлайн» - на uust.ru этого нет, а без
     этого каталог не отфильтровать. Один вызов LLM на пачку событий (по названию и дате).
-    Неразобранный ответ не теряет события: они попадают в каталог как «Другое»."""
+
+    LLM недоступна или не разметила событие - работает запасная разметка по ключевым словам
+    (guess_labels): каталог пополняется всегда. После первого отказа LLM в этом прогоне больше
+    не вызывается - иначе медленный провайдер растянул бы импорт на десятки минут."""
 
     # 10 названий - ответ укладывается в таймаут LLM даже когда провайдер медленный
     def __init__(self, llm_service: LLMService, batch_size: int = 10) -> None:
         self._llm_service = llm_service
         self.batch_size = batch_size
+        self._llm_down = False
 
     async def execute(self, events: list[RawEvent]) -> list[Event]:
         result: list[Event] = []
         for start in range(0, len(events), self.batch_size):
             batch = events[start : start + self.batch_size]
-            labels = self._parse(await self._llm_service.generate(self._prompt(batch)))
+            labels = await self._labels(batch)
             for n, raw in enumerate(batch, start=1):
-                label = labels.get(n, {})
+                label = labels.get(n)
+                if label is None:
+                    topic, fmt, online = guess_labels(raw.title)
+                    label = {"topic": topic, "format": fmt, "online": online}
                 result.append(
                     Event(
                         slug=raw.slug,
@@ -38,6 +45,16 @@ class ClassifyEvents:
                     )
                 )
         return result
+
+    async def _labels(self, batch: list[RawEvent]) -> dict[int, dict]:
+        if self._llm_down:
+            return {}
+        try:
+            return self._parse(await self._llm_service.generate(self._prompt(batch)))
+        except LLMUnavailableError:
+            logger.warning("ClassifyEvents: LLM недоступна - дальше размечаю по ключевым словам")
+            self._llm_down = True
+            return {}
 
     @staticmethod
     def _prompt(batch: list[RawEvent]) -> str:
@@ -60,5 +77,5 @@ class ClassifyEvents:
         except json.JSONDecodeError:
             items = []
         if not items:
-            logger.warning("ClassifyEvents: не разобрал ответ LLM, события пойдут как «Другое»: %s", preview(raw))
+            logger.warning("ClassifyEvents: не разобрал ответ LLM, размечаю по ключевым словам: %s", preview(raw))
         return {item["n"]: item for item in items if isinstance(item, dict) and isinstance(item.get("n"), int)}

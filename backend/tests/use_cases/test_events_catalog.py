@@ -65,15 +65,24 @@ async def test_nothing_new_means_no_llm_calls(fake_llm_service) -> None:
     assert fake_llm_service.call_count == 0
 
 
-async def test_llm_outage_keeps_new_events_for_next_run() -> None:
+async def test_llm_outage_falls_back_to_keyword_labels_without_waiting_again() -> None:
     class DownLLM:
+        def __init__(self) -> None:
+            self.calls = 0
+
         async def generate(self, prompt):
+            self.calls += 1
             raise LLMUnavailableError("503")
 
+    llm = DownLLM()
     store = FakeStore()
-    report = await ImportEvents(EventsService(FakeSource([_raw("new")]), store), ClassifyEvents(DownLLM())).execute(pages=1)
+    source = FakeSource([RawEvent(slug=f"s{n}", title="Турнир по шахматам", starts_at=WHEN, url="u") for n in range(25)])
 
-    assert report.failed == 1 and store.events == {}
+    report = await ImportEvents(EventsService(source, store), ClassifyEvents(llm, batch_size=10)).execute(pages=3)
+
+    assert report.imported == 25 and report.failed == 0
+    assert store.events["s0"].topic == "Спорт и здоровье"  # разметка по ключевым словам
+    assert llm.calls == 1  # после первого отказа LLM больше не ждём
 
 
 async def test_list_returns_events_and_counts_for_every_topic() -> None:
@@ -87,21 +96,3 @@ async def test_list_returns_events_and_counts_for_every_topic() -> None:
     assert page.formats["Конкурс"] == 1
 
 
-async def test_saves_each_labeled_batch_so_an_outage_keeps_earlier_ones() -> None:
-    class FlakyLLM:
-        def __init__(self) -> None:
-            self.calls = 0
-
-        async def generate(self, prompt):
-            self.calls += 1
-            if self.calls > 1:
-                raise LLMUnavailableError("timeout")
-            return "[]"
-
-    store = FakeStore()
-    source = FakeSource([_raw(f"e{n}") for n in range(25)])
-
-    report = await ImportEvents(EventsService(source, store), ClassifyEvents(FlakyLLM(), batch_size=10)).execute(pages=3)
-
-    assert len(store.events) == 10  # первая пачка сохранена, хотя вторая упала
-    assert (report.imported, report.failed) == (10, 15)
