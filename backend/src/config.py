@@ -49,6 +49,12 @@ NEWS_IMPORT_PAUSE_SECONDS: float = float(os.environ.get("NEWS_IMPORT_PAUSE_SECON
 DOCUMENTS_IMPORT_INTERVAL_HOURS: int = int(os.environ.get("DOCUMENTS_IMPORT_INTERVAL_HOURS", "24"))
 DOCUMENTS_IMPORT_BATCH_SIZE: int = int(os.environ.get("DOCUMENTS_IMPORT_BATCH_SIZE", "20"))
 
+# Каталог мероприятий (uust.ru/events): как часто обновлять (часы, 0 - только вручную через
+# POST /events/import) и сколько страниц сайта (по 12 событий) просматривать. Новые события
+# размечаются LLM пачками по 20 - уже известные вызовов не стоят.
+EVENTS_IMPORT_INTERVAL_HOURS: int = int(os.environ.get("EVENTS_IMPORT_INTERVAL_HOURS", "6"))
+EVENTS_IMPORT_PAGES: int = int(os.environ.get("EVENTS_IMPORT_PAGES", "15"))
+
 # Порог косинусового сходства для обычного поиска по базе знаний: фрагменты ниже него не
 # попадают в контекст LLM - иначе на вопрос без ответа в базе модель пересказывает всё
 # подряд из топ-N. Реальные значения видны в DEBUG-логах SearchDataByListOfStr - по ним

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -124,3 +126,32 @@ def route_out(route) -> RouteOut:
 
 def _points(points) -> list[RoutePointOut]:
     return [RoutePointOut(x=p.x, y=p.y, floor=p.floor, building=p.building) for p in points]
+
+
+class EventOut(BaseModel):
+    slug: str
+    title: str
+    starts_at: datetime
+    url: str
+    image: str | None = None
+    topic: str
+    format: str
+    online: bool = False
+
+
+class FacetOut(BaseModel):
+    name: str
+    count: int
+
+
+class EventsPageOut(BaseModel):
+    events: list[EventOut]
+    # все значения справочников с числом событий - для чипов фильтров (в т.ч. с нулём)
+    topics: list[FacetOut]
+    formats: list[FacetOut]
+
+
+class EventsImportOut(BaseModel):
+    imported: int
+    skipped: int
+    failed: int

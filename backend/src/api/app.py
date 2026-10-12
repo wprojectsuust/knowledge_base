@@ -13,6 +13,7 @@ from src.api.dependencies import (
     get_data_store_service,
     get_embedding_service,
     get_import_documents_use_case,
+    get_import_events_use_case,
     get_import_news_use_case,
     get_llm_service,
     get_question_cache_service,
@@ -48,6 +49,18 @@ async def _import_documents_periodically() -> None:
         except Exception:
             logger.exception("Импорт документов: прогон упал, попробую в следующий раз")
         await asyncio.sleep(config.DOCUMENTS_IMPORT_INTERVAL_HOURS * 3600)
+
+
+async def _import_events_periodically() -> None:
+    """Фоновое обновление каталога мероприятий. Первый прогон - через 2 минуты после старта,
+    дальше раз в EVENTS_IMPORT_INTERVAL_HOURS (события на сайте появляются часто)."""
+    await asyncio.sleep(2 * 60)
+    while True:
+        try:
+            await get_import_events_use_case().execute(pages=config.EVENTS_IMPORT_PAGES)
+        except Exception:
+            logger.exception("Импорт мероприятий: прогон упал, попробую в следующий раз")
+        await asyncio.sleep(config.EVENTS_IMPORT_INTERVAL_HOURS * 3600)
 
 
 @asynccontextmanager
@@ -94,10 +107,15 @@ async def lifespan(app: FastAPI):
         documents_task = asyncio.create_task(_import_documents_periodically())
         logger.info("Импорт документов uust.ru: раз в %d ч", config.DOCUMENTS_IMPORT_INTERVAL_HOURS)
 
+    events_task = None
+    if config.EVENTS_IMPORT_INTERVAL_HOURS > 0:
+        events_task = asyncio.create_task(_import_events_periodically())
+        logger.info("Каталог мероприятий uust.ru: обновление раз в %d ч", config.EVENTS_IMPORT_INTERVAL_HOURS)
+
     logger.info("Сервер готов принимать запросы")
     yield
     logger.info("Остановка сервера")
-    for task in (news_task, documents_task):
+    for task in (news_task, documents_task, events_task):
         if task is not None:
             task.cancel()
 

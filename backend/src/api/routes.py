@@ -3,10 +3,14 @@ import json
 import logging
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from datetime import date
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse, StreamingResponse
 
 from src.api.dependencies import (
+    get_import_events_use_case,
+    get_list_events_use_case,
     get_build_route_use_case,
     get_campus_service,
     get_import_news_use_case,
@@ -18,6 +22,10 @@ from src.api.dependencies import (
     get_search_data_use_case,
 )
 from src.api.schemas import (
+    EventOut,
+    EventsImportOut,
+    EventsPageOut,
+    FacetOut,
     ClarificationOut,
     DataCreated,
     DataIn,
@@ -38,11 +46,14 @@ from src.domain.clarification import ClarificationRequest, KnownFact
 from src.domain.data import Data
 from src.domain.dialog import DialogTurn
 from src.domain.division import divisions_by_slug
+from src.domain.event import EventQuery
 from src.domain.progress import Progress, no_progress
 from src.services.campus_service import CampusService
 from src.services.llm_service import LLMUnavailableError
 from src.use_cases.build_route import BuildRoute
+from src.use_cases.import_events import ImportEvents
 from src.use_cases.import_news import ImportNews
+from src.use_cases.list_events import ListEvents
 from src.use_cases.new_data import NewData
 from src.use_cases.question import Question
 from src.use_cases.remove_data import RemoveDataById
@@ -252,3 +263,44 @@ async def import_news(
     logger.info("POST /news/import: limit=%d", limit)
     report = await use_case.execute(limit=min(max(limit, 1), 100))
     return ImportReportOut(imported=report.imported, skipped=report.skipped, failed=report.failed)
+
+
+@router.get("/events", response_model=EventsPageOut)
+async def list_events(
+    date_from: date | None = None,
+    date_to: date | None = None,
+    topic: list[str] = Query(default=[]),
+    format: list[str] = Query(default=[]),
+    online: bool | None = None,
+    q: str = Query(default="", max_length=100),
+    order: str = Query(default="asc", pattern="^(asc|desc)$"),
+    limit: int = Query(default=60, ge=1, le=200),
+    use_case: ListEvents = Depends(get_list_events_use_case),
+) -> EventsPageOut:
+    """Каталог мероприятий университета: фильтры по датам (включительно, по Уфе), тематикам и
+    форматам (можно несколько), онлайн, поиск по названию. order=desc - от свежих к старым."""
+    query = EventQuery(
+        date_from=date_from,
+        date_to=date_to,
+        topics=tuple(topic),
+        formats=tuple(format),
+        online=online,
+        text=q,
+        newest_first=order == "desc",
+        limit=limit,
+    )
+    page = await use_case.execute(query)
+    return EventsPageOut(
+        events=[EventOut(**event.__dict__) for event in page.events],
+        topics=[FacetOut(name=name, count=count) for name, count in page.topics.items()],
+        formats=[FacetOut(name=name, count=count) for name, count in page.formats.items()],
+    )
+
+
+@router.post("/events/import", response_model=EventsImportOut)
+async def import_events(
+    pages: int = Query(default=15, ge=1, le=60), use_case: ImportEvents = Depends(get_import_events_use_case)
+) -> EventsImportOut:
+    """Обновить каталог с uust.ru/events прямо сейчас (фоном - раз в EVENTS_IMPORT_INTERVAL_HOURS)."""
+    report = await use_case.execute(pages=pages)
+    return EventsImportOut(imported=report.imported, skipped=report.skipped, failed=report.failed)

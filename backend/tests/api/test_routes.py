@@ -360,3 +360,37 @@ def test_route_includes_street_alternative_when_going_through_passages() -> None
     assert body["alternative"]["distance_m"] > 0
     assert any(point["floor"] == 0 for point in body["alternative"]["points"])
     assert any(point["floor"] == -1 for point in body["points"])  # подземный переход под КПП
+
+
+def test_events_catalog_passes_filters_and_returns_facets() -> None:
+    from datetime import date, datetime, timezone
+
+    from src.api.dependencies import get_list_events_use_case
+    from src.domain.event import Event
+    from src.use_cases.list_events import EventsPage
+
+    class _StubListEvents:
+        def __init__(self) -> None:
+            self.query = None
+
+        async def execute(self, query):
+            self.query = query
+            event = Event(slug="chess", title="Турнир по шахматам", starts_at=datetime(2026, 10, 20, 12, tzinfo=timezone.utc),
+                          url="https://uust.ru/events/get/chess/", image=None, topic="Спорт и здоровье",
+                          format="Соревнование и игра", online=False)
+            return EventsPage(events=[event], topics={"Спорт и здоровье": 1}, formats={"Соревнование и игра": 1})
+
+    stub = _StubListEvents()
+    client = _client_with_overrides({get_list_events_use_case: lambda: stub})
+
+    body = client.get(
+        "/events",
+        params={"date_from": "2026-10-12", "topic": ["Спорт и здоровье", "Карьера и бизнес"], "format": "Конкурс",
+                "q": "шахматы", "order": "desc"},
+    ).json()
+
+    assert stub.query.date_from == date(2026, 10, 12)
+    assert stub.query.topics == ("Спорт и здоровье", "Карьера и бизнес")
+    assert stub.query.formats == ("Конкурс",) and stub.query.text == "шахматы" and stub.query.newest_first
+    assert body["events"][0]["slug"] == "chess"
+    assert body["topics"] == [{"name": "Спорт и здоровье", "count": 1}]
