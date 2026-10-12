@@ -163,7 +163,7 @@ def get_question_use_case() -> Question:
         get_get_schedule_use_case(),
         build_route=get_build_route_use_case(),
         compose_answer=ComposeAnswer(get_llm_service()),
-        latest_news=LatestNews(get_data_store_service()),
+        latest_news=LatestNews(get_data_store_service(), events_service=get_events_service()),
     )
 
 
