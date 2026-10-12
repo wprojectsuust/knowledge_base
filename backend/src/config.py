@@ -51,7 +51,7 @@ DOCUMENTS_IMPORT_BATCH_SIZE: int = int(os.environ.get("DOCUMENTS_IMPORT_BATCH_SI
 
 # Каталог мероприятий (uust.ru/events): как часто обновлять (часы, 0 - только вручную через
 # POST /events/import) и сколько страниц сайта (по 12 событий) просматривать. Новые события
-# размечаются LLM пачками по 20 - уже известные вызовов не стоят.
+# размечаются LLM пачками по 10 - уже известные вызовов не стоят.
 EVENTS_IMPORT_INTERVAL_HOURS: int = int(os.environ.get("EVENTS_IMPORT_INTERVAL_HOURS", "6"))
 EVENTS_IMPORT_PAGES: int = int(os.environ.get("EVENTS_IMPORT_PAGES", "15"))
 

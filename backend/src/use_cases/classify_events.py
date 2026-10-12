@@ -13,14 +13,15 @@ class ClassifyEvents:
     этого каталог не отфильтровать. Один вызов LLM на пачку событий (по названию и дате).
     Неразобранный ответ не теряет события: они попадают в каталог как «Другое»."""
 
-    def __init__(self, llm_service: LLMService, batch_size: int = 20) -> None:
+    # 10 названий - ответ укладывается в таймаут LLM даже когда провайдер медленный
+    def __init__(self, llm_service: LLMService, batch_size: int = 10) -> None:
         self._llm_service = llm_service
-        self._batch_size = batch_size
+        self.batch_size = batch_size
 
     async def execute(self, events: list[RawEvent]) -> list[Event]:
         result: list[Event] = []
-        for start in range(0, len(events), self._batch_size):
-            batch = events[start : start + self._batch_size]
+        for start in range(0, len(events), self.batch_size):
+            batch = events[start : start + self.batch_size]
             labels = self._parse(await self._llm_service.generate(self._prompt(batch)))
             for n, raw in enumerate(batch, start=1):
                 label = labels.get(n, {})

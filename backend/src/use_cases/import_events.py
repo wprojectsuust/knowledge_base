@@ -17,8 +17,8 @@ class EventsImportReport:
 
 class ImportEvents:
     """Пополняет каталог мероприятий с uust.ru/events: новые события размечаются LLM (тематика,
-    формат) и сохраняются; уже известные пропускаются без вызовов LLM. LLM недоступна - новые
-    события не сохраняем, доберём в следующий прогон."""
+    формат) и сохраняются пачками; уже известные пропускаются без вызовов LLM. LLM недоступна -
+    остальные пачки доберём в следующий прогон."""
 
     def __init__(self, events_service: EventsService, classify_events: ClassifyEvents) -> None:
         self._events_service = events_service
@@ -28,15 +28,17 @@ class ImportEvents:
         found = await self._events_service.latest_from_site(pages)
         known = await self._events_service.known_slugs([event.slug for event in found])
         fresh = [event for event in found if event.slug not in known]
-        if not fresh:
-            report = EventsImportReport(skipped=len(known))
-        else:
+        imported = 0
+        # размечаем и сохраняем пачками: медленная или упавшая LLM не теряет уже размеченное
+        for start in range(0, len(fresh), self._classify_events.batch_size):
+            batch = fresh[start : start + self._classify_events.batch_size]
             try:
-                events = await self._classify_events.execute(fresh)
+                events = await self._classify_events.execute(batch)
             except LLMUnavailableError:
-                logger.warning("ImportEvents: LLM недоступна, %d новых событий - в следующий раз", len(fresh))
-                return EventsImportReport(skipped=len(known), failed=len(fresh))
+                logger.warning("ImportEvents: LLM недоступна, %d событий - в следующий раз", len(fresh) - imported)
+                break
             await self._events_service.save_many(events)
-            report = EventsImportReport(imported=len(events), skipped=len(known))
+            imported += len(events)
+        report = EventsImportReport(imported=imported, skipped=len(known), failed=len(fresh) - imported)
         logger.info("ImportEvents: %s", report)
         return report

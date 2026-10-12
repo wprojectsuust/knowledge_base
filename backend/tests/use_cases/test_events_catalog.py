@@ -85,3 +85,23 @@ async def test_list_returns_events_and_counts_for_every_topic() -> None:
     assert [e.slug for e in page.events] == ["a"]
     assert page.topics["Спорт и здоровье"] == 1 and page.topics["Наука и технологии"] == 0
     assert page.formats["Конкурс"] == 1
+
+
+async def test_saves_each_labeled_batch_so_an_outage_keeps_earlier_ones() -> None:
+    class FlakyLLM:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def generate(self, prompt):
+            self.calls += 1
+            if self.calls > 1:
+                raise LLMUnavailableError("timeout")
+            return "[]"
+
+    store = FakeStore()
+    source = FakeSource([_raw(f"e{n}") for n in range(25)])
+
+    report = await ImportEvents(EventsService(source, store), ClassifyEvents(FlakyLLM(), batch_size=10)).execute(pages=3)
+
+    assert len(store.events) == 10  # первая пачка сохранена, хотя вторая упала
+    assert (report.imported, report.failed) == (10, 15)
