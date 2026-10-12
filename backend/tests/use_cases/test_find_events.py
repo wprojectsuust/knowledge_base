@@ -77,3 +77,13 @@ async def test_topic_filters_only_when_there_are_no_keywords() -> None:
     await FindEvents(events, today=lambda: TODAY).execute(EventsTask(question="что по науке", topic="Наука и технологии"))
 
     assert events.queries[0].topics == ("Наука и технологии",)
+
+
+async def test_odd_minutes_are_publication_time_so_only_the_date_is_shown() -> None:
+    published = Event(slug="p", title="Олимпиада", starts_at=datetime(2026, 10, 1, 11, 43, tzinfo=timezone.utc),
+                      url="u", image=None, topic="Учёба и поступление", format="Конкурс")
+    found = await FindEvents(FakeEvents([published, _event("a", 20)], []), today=lambda: TODAY).execute(EventsTask(question="q"))
+
+    text = found.as_context().content
+    assert "01.10.2026 (" in text and "16:43" not in text  # 11:43 UTC = 16:43 в Уфе - время публикации
+    assert "20.10.2026 11:00" in text  # ровное время - время начала

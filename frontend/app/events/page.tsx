@@ -18,6 +18,7 @@ const MONTH = new Intl.DateTimeFormat("ru-RU", { month: "long", year: "numeric" 
 const DAY = new Intl.DateTimeFormat("ru-RU", { day: "numeric" });
 const SHORT_MONTH = new Intl.DateTimeFormat("ru-RU", { month: "short" });
 const WEEKDAY_TIME = new Intl.DateTimeFormat("ru-RU", { weekday: "short", hour: "2-digit", minute: "2-digit" });
+const WEEKDAY = new Intl.DateTimeFormat("ru-RU", { weekday: "long" });
 
 function addDays(date: Date, days: number) {
   const copy = new Date(date);
@@ -88,7 +89,10 @@ function EventCard({ event }: { event: CampusEvent }) {
         </div>
       </div>
       <div className="event-body">
-        <p className="event-when">{WEEKDAY_TIME.format(start)}</p>
+        <p className="event-when">
+          {/* «неровное» время (16:43) на uust.ru - время публикации карточки, не начала: только день */}
+          {start.getMinutes() % 15 === 0 ? WEEKDAY_TIME.format(start) : WEEKDAY.format(start)}
+        </p>
         <h3 className="event-title">{event.title}</h3>
         <div className="event-tags">
           <span className="event-tag topic">{event.topic}</span>

@@ -335,3 +335,9 @@ async def test_events_question_is_answered_from_the_catalog_not_the_vector_base(
     assert "https://uust.ru/events/get/hack/" in answer_llm.last_prompt  # каталог - в контексте ответа
     assert fake_embedding_service.call_count == 0  # в векторную базу не ходили
     assert fake_question_cache_service.store == {}  # ответ зависит от даты - не кэшируем
+
+
+async def test_events_part_tells_llm_to_offer_nearest_events_when_nothing_matches() -> None:
+    from src.use_cases.question import EVENTS_INSTRUCTIONS
+
+    assert "таких мероприятий" in EVENTS_INSTRUCTIONS and "ближайшие" in EVENTS_INSTRUCTIONS

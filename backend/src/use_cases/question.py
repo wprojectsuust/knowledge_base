@@ -22,6 +22,14 @@ from src.use_cases.search_data import SearchDataByListOfStr
 
 logger = logging.getLogger(__name__)
 
+# правила ответа по каталогу мероприятий - вместо общего «нет в базе, обратитесь к куратору»
+EVENTS_INSTRUCTIONS = (
+    "Отвечай по каталогу мероприятий из контекста. Называй дату, название и ссылку на мероприятие; "
+    "прошедшие называй прошедшими. Если подходящих под вопрос мероприятий нет, прямо скажи, что таких "
+    "мероприятий в каталоге сейчас нет, и предложи ближайшие из контекста (со ссылками). Не советуй "
+    "обращаться к куратору, если в контексте есть мероприятия.\n"
+)
+
 
 class Question:
     """Входная точка, оркестратор подзадач.
@@ -174,7 +182,7 @@ class Question:
             return None
         await progress("Ищу в афише мероприятий")
         found = await self._find_events.execute(task)
-        return await self._analyze_data.execute(task.question, [found.as_context()])
+        return await self._analyze_data.execute(task.question, [found.as_context()], EVENTS_INSTRUCTIONS)
 
     async def _route_part(self, request: RouteRequest | None, progress: Progress):
         if request is None or self._build_route is None:

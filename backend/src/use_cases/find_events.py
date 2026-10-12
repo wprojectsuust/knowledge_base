@@ -30,9 +30,7 @@ class FoundEvents:
             local = event.starts_at.astimezone(config.LOCAL_TZ)
             when = "прошло" if local.date() < today else "предстоит"
             online = ", онлайн" if event.online else ""
-            lines.append(
-                f"- {local:%d.%m.%Y %H:%M} ({when}) - {event.title} ({event.topic}, {event.format}{online}): {event.url}"
-            )
+            lines.append(f"- {event_when(local)} ({when}) - {event.title} ({event.topic}, {event.format}{online}): {event.url}")
         note = (
             "По ключевым словам вопроса мероприятий не нашлось, ниже - другие мероприятия за эти даты.\n"
             if self.relaxed
@@ -44,6 +42,12 @@ class FoundEvents:
             source="https://uust.ru/events/",
             content=f"Каталог мероприятий УУНиТ (вкладка «Мероприятия»), сегодня {today:%d.%m.%Y}:\n{note}{body}",
         )
+
+
+def event_when(local: datetime) -> str:
+    """Дата и время начала. «Неровное» время (16:43) на uust.ru - это время публикации карточки, а
+    не начала события: его не показываем, чтобы не вводить в заблуждение."""
+    return f"{local:%d.%m.%Y %H:%M}" if local.minute % 15 == 0 else f"{local:%d.%m.%Y}"
 
 
 class FindEvents:
