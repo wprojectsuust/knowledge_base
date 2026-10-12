@@ -60,13 +60,11 @@ function groupByMonth(events: CampusEvent[]) {
 function FacetChips({ facets, selected, onToggle }: { facets: Facet[]; selected: string[]; onToggle: (name: string) => void }) {
   return (
     <div className="events-chips">
-      {facets
-        .filter((facet) => facet.count > 0 || selected.includes(facet.name))
-        .map((facet) => (
+      {facets.map((facet) => (
           <button
             key={facet.name}
             type="button"
-            className={`chip${selected.includes(facet.name) ? " active" : ""}`}
+            className={`chip${selected.includes(facet.name) ? " active" : ""}${facet.count === 0 ? " empty" : ""}`}
             onClick={() => onToggle(facet.name)}
           >
             {facet.name}
@@ -123,6 +121,8 @@ export default function EventsPage() {
   const [text, setText] = useState("");
   const [debouncedText, setDebouncedText] = useState("");
   const [page, setPage] = useState<EventsPage | null>(null);
+  // под «Предстоящими» - недавно прошедшие: на сайте вуза анонсов вперёд обычно немного
+  const [recent, setRecent] = useState<CampusEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -135,11 +135,21 @@ export default function EventsPage() {
     const controller = new AbortController();
     setLoading(true);
     setError(null);
-    fetchEvents(
-      { ...periodRange(period, customFrom, customTo), topics, formats, onlineOnly, text: debouncedText },
-      controller.signal,
-    )
-      .then(setPage)
+    const facets = { topics, formats, onlineOnly, text: debouncedText };
+    const recentRequest =
+      period === "upcoming"
+        ? fetchEvents({ ...periodRange("past", customFrom, customTo), ...facets }, controller.signal).then(
+            (result) => result.events.slice(0, 9),
+          )
+        : Promise.resolve([]);
+    Promise.all([
+      fetchEvents({ ...periodRange(period, customFrom, customTo), ...facets }, controller.signal),
+      recentRequest,
+    ])
+      .then(([result, past]) => {
+        setPage(result);
+        setRecent(past);
+      })
       .catch((reason) => {
         if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "Не удалось загрузить");
       })
@@ -149,7 +159,11 @@ export default function EventsPage() {
     return () => controller.abort();
   }, [period, customFrom, customTo, topics, formats, onlineOnly, debouncedText]);
 
-  const groups = useMemo(() => groupByMonth(page?.events ?? []), [page]);
+  // по месяцам группируем только длинные списки - при паре событий заголовки съедают экран
+  const groups = useMemo(() => {
+    const events = page?.events ?? [];
+    return events.length > 6 ? groupByMonth(events) : events.length ? [{ month: "", events }] : [];
+  }, [page]);
   const filtered = topics.length > 0 || formats.length > 0 || onlineOnly || debouncedText.trim() !== "";
 
   function reset() {
@@ -229,7 +243,7 @@ export default function EventsPage() {
 
       {error && <p className="answer-text error-text">{error}</p>}
 
-      {!loading && !error && page && page.events.length === 0 && (
+      {!loading && !error && page && page.events.length === 0 && recent.length === 0 && (
         <div className="events-empty">
           <p>Под эти условия мероприятий нет.</p>
           {period !== "past" && (
@@ -247,7 +261,7 @@ export default function EventsPage() {
 
       {groups.map((group) => (
         <div key={group.month} className="events-month">
-          <h2 className="events-month-title">{group.month}</h2>
+          {group.month && <h2 className="events-month-title">{group.month}</h2>}
           <div className="events-grid">
             {group.events.map((event) => (
               <EventCard key={event.slug} event={event} />
@@ -255,6 +269,22 @@ export default function EventsPage() {
           </div>
         </div>
       ))}
+
+      {recent.length > 0 && (
+        <div className="events-month">
+          <h2 className="events-month-title events-recent-title">
+            Недавно прошли
+            <button type="button" className="events-reset" onClick={() => setPeriod("past")}>
+              Все прошедшие
+            </button>
+          </h2>
+          <div className="events-grid">
+            {recent.map((event) => (
+              <EventCard key={event.slug} event={event} />
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

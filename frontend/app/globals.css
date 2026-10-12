@@ -1635,6 +1635,10 @@ input {
   box-shadow: 0 0 12px rgba(77, 107, 255, 0.35);
 }
 
+.events-page .chip.empty {
+  opacity: 0.5;
+}
+
 .events-chip-count {
   min-width: 20px;
   padding: 1px 6px;
@@ -1709,6 +1713,13 @@ input {
   font-size: 18px;
   font-weight: 600;
   text-transform: capitalize;
+}
+
+.events-recent-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-transform: none;
 }
 
 .events-grid {
@@ -1849,6 +1860,7 @@ input {
 }
 
 .event-action {
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 6px;
